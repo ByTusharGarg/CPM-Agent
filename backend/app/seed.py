@@ -13,7 +13,7 @@ from datetime import date, timedelta
 
 from sqlmodel import SQLModel
 
-from .db import engine, session_scope, today
+from .db import engine, session_scope, today, utcnow
 from .models import (
     ChatMessage,
     Membership,
@@ -40,6 +40,14 @@ def seed(eng=None) -> list[int]:
         org = Organization(name="Riverside Developers")
         s.add(org)
         s.flush()
+        from .models import ModelConfig
+
+        s.add_all([  # models the agents can use; the local Ollama model is the default
+            ModelConfig(org_id=org.id, label="Qwen3 8B (local)", provider="ollama", model="qwen3:8b", is_default=True),
+            ModelConfig(org_id=org.id, label="Claude Opus 5.5", provider="anthropic", model="claude-opus-5-5"),
+            ModelConfig(org_id=org.id, label="Claude Sonnet 5.5", provider="anthropic", model="claude-sonnet-5-5"),
+            ModelConfig(org_id=org.id, label="Offline placeholder", provider="stub", model="stub"),
+        ])
         # ------------------------------------------------------------ project 1 (behind)
         p = Project(
             org_id=org.id,
@@ -170,7 +178,176 @@ def seed(eng=None) -> list[int]:
             Membership(user_id=apex.id, project_id=p.id, role="contractor", contractor_id=steel.id),
             Membership(user_id=shree.id, project_id=q.id, role="contractor", contractor_id=gc.id),
         ])
+        s.flush()
+        _seed_documents(s, p, design1, steel, facade, apex, cons)
+        _seed_commercial(s, p, civil, steel, mep)
     return ids
+
+
+def _seed_commercial(s, p, civil, steel, mep):
+    """Contracts (facade package not yet awarded), change orders, and pay applications -
+    including Apex's RA bill #2 that claims ahead of recorded site progress."""
+    from sqlmodel import select as _select
+
+    from .models import (
+        Activity,
+        ChangeOrder,
+        Contract,
+        ContractLine,
+        FundingSource,
+        Milestone,
+        PayApplication,
+        PayAppLine,
+    )
+
+    acts = {a.code: a for a in s.exec(_select(Activity).where(Activity.project_id == p.id)).all()}
+    ms = {m.name: m for m in s.exec(_select(Milestone).where(Milestone.project_id == p.id)).all()}
+
+    def contract(c, number, title, lines):
+        k = Contract(project_id=p.id, contractor_id=c.id, number=number, title=title, retention_pct=5.0)
+        s.add(k)
+        s.flush()
+        rows = []
+        for i, (code, desc, value, ref) in enumerate(lines):
+            ln = ContractLine(contract_id=k.id, code=code, description=desc, value=value, sort_order=i,
+                              activity_id=ref.id if isinstance(ref, Activity) else None,
+                              milestone_id=ref.id if isinstance(ref, Milestone) else None)
+            s.add(ln)
+            rows.append(ln)
+        s.flush()
+        return k, rows
+
+    civil_k, civil_l = contract(civil, "WO-CIV-01", "Civil, substructure and finishes", [
+        ("C1", "Mobilisation & excavation", 22_000_000, ms["Mobilisation & excavation"]),
+        ("C2", "Foundations & basement raft", 68_000_000, ms["Foundations & basement raft"]),
+        ("C3", "Finishes & fit-out", 72_000_000, ms["Finishes & fit-out"]),
+    ])
+    steel_k, steel_l = contract(steel, "WO-STL-01", "Structural steel supply and erection", [
+        ("S1", "Erect steel L1-L2", 30_000_000, acts["A5"]),
+        ("S2", "Erect steel L3-L4", 30_000_000, acts["A6"]),
+        ("S3", "Metal deck & slabs L1-L4", 12_000_000, acts["A7"]),
+        ("S4", "Erect steel L5-L8", 50_000_000, acts["A8"]),
+        ("S5", "Metal deck & slabs L5-L8", 20_000_000, acts["A9"]),
+    ])
+    contract(mep, "WO-MEP-01", "MEP services and commissioning", [
+        ("M1", "MEP rough-in", 86_000_000, ms["MEP rough-in"]),
+        ("M2", "Testing, commissioning & handover", 26_000_000, ms["Testing, commissioning & handover"]),
+    ])
+    # The unitised facade package (64M budget) is not awarded yet -> shows as uncommitted.
+
+    s.add_all([
+        ChangeOrder(project_id=p.id, contract_id=civil_k.id, number=1, title="Dewatering - high water table", reason="site_condition",
+                    stage="approved", proposed_amount=2_900_000, approved_amount=2_600_000, time_impact_days=0,
+                    assessment="Ground water 2.1 m above the GI report level; entitlement accepted, rates agreed at 2.6M.",
+                    decided_at=utcnow() - timedelta(days=90)),
+        ChangeOrder(project_id=p.id, contract_id=steel_k.id, number=2, title="Shop-welded facade embed plates on L3-L8 perimeter beams",
+                    reason="design_change", stage="pco", proposed_amount=1_800_000, time_impact_days=0, source_ref="rfi:1",
+                    description="F-201 R1 added weld-on embed plates at every facade bracket; not on the steel IFC drawings."),
+        ChangeOrder(project_id=p.id, contract_id=steel_k.id, number=3, title="Crane and crew standby awaiting batch 2 steel",
+                    reason="other", stage="submitted", proposed_amount=4_500_000, time_impact_days=12,
+                    description="Apex claims 12 days standby of the 110 t crawler crane and an erection crew of 14."),
+    ])
+
+    civil_pa = PayApplication(project_id=p.id, contract_id=civil_k.id, number=1, period_end=d(-50), status="certified",
+                              gross_to_date=90_000_000, certified_to_date=90_000_000, retention=4_500_000,
+                              amount_due=85_500_000, certified_at=utcnow() - timedelta(days=45))
+    steel_pa1 = PayApplication(project_id=p.id, contract_id=steel_k.id, number=1, period_end=d(-20), status="certified",
+                               gross_to_date=12_000_000, certified_to_date=12_000_000, retention=600_000,
+                               amount_due=11_400_000, certified_at=utcnow() - timedelta(days=15))
+    steel_pa2 = PayApplication(project_id=p.id, contract_id=steel_k.id, number=2, period_end=d(-3), status="submitted",
+                               gross_to_date=30_000_000 * 0.85 + 30_000_000 * 0.15, previous_certified=12_000_000,
+                               notes="RA bill 2: erection L1-L2 and start of L3-L4.")
+    steel_pa2.retention = round(steel_pa2.gross_to_date * 0.05, 2)
+    steel_pa2.amount_due = round((steel_pa2.gross_to_date - 12_000_000) * 0.95, 2)
+    s.add_all([civil_pa, steel_pa1, steel_pa2])
+    s.flush()
+    s.add_all([
+        PayAppLine(pay_app_id=civil_pa.id, contract_line_id=civil_l[0].id, claimed_pct=100, certified_pct=100),
+        PayAppLine(pay_app_id=civil_pa.id, contract_line_id=civil_l[1].id, claimed_pct=100, certified_pct=100),
+        PayAppLine(pay_app_id=steel_pa1.id, contract_line_id=steel_l[0].id, claimed_pct=40, certified_pct=40),
+        # Recorded progress on "Erect steel L1-L2" is 60% and L3-L4 has not started: this bill runs ahead of site.
+        PayAppLine(pay_app_id=steel_pa2.id, contract_line_id=steel_l[0].id, claimed_pct=85),
+        PayAppLine(pay_app_id=steel_pa2.id, contract_line_id=steel_l[1].id, claimed_pct=15),
+    ])
+    s.add_all([FundingSource(project_id=p.id, name="Promoter equity", amount=180_000_000, drawn=150_000_000),
+               FundingSource(project_id=p.id, name="Construction term loan", amount=300_000_000, drawn=60_000_000)])
+
+
+SPEC_0844 = """SECTION 08 44 13 - GLAZED ALUMINIUM CURTAIN WALLS (UNITISED)
+Riverside Commercial Complex - Issued for Construction
+
+1.4 PERFORMANCE REQUIREMENTS
+A. Thermal: centre-of-glass U-value not more than 1.6 W/m2K; system U-value not more than 2.2 W/m2K.
+B. Solar: solar heat gain coefficient (SHGC) not more than 0.25; visible light transmission at least 0.40.
+C. Structural: design wind pressure 2.1 kPa; deflection of framing members limited to span/175 or 19 mm.
+D. Water penetration: no uncontrolled water at 600 Pa test pressure.
+
+1.6 SUBMITTALS
+A. Shop drawings showing unit layout, bracket and anchor details, stack joints and movement capacity.
+B. Structural calculations sealed by a chartered engineer.
+C. Samples: 300 x 300 mm glass and frame finish samples.
+D. Performance test report for a mock-up tested to clause 1.4.
+
+2.3 ANCHORS AND BRACKETS
+A. Cast-in channels in slab edges at maximum 1200 mm centres; embedment depth not less than 150 mm.
+B. Brackets: hot-dip galvanised steel, three-way adjustable (+/- 25 mm).
+C. Where slab edges are steel beams, weld-on embed plates 200 x 150 x 12 mm to be provided by the steel contractor.
+
+3.2 INSTALLATION
+A. Install units only after slab edge survey; tolerance +/- 10 mm.
+"""
+
+STRUCT_NOTES = """S-001 STRUCTURAL GENERAL NOTES - Revision C - For Construction
+1. Structural steel to IS 2062 grade E350. Bolts property class 8.8, pre-tensioned at moment connections.
+2. Composite metal deck 1.0 mm, concrete grade M30 with 75 mm topping.
+3. Facade embed plates on perimeter beams per architectural facade drawings; coordinate before fabrication.
+4. Fire protection: 2 hour rating to columns, 1.5 hour to beams (intumescent coating).
+"""
+
+FACADE_DWG = """F-201 UNITISED FACADE - TYPICAL BRACKET AND STACK JOINT DETAILS - Revision R1
+Bracket spacing 1200 mm maximum along slab edge. Cast-in channel embedment 150 mm.
+At steel perimeter beams (levels 1-8) use weld-on embed plate 200 x 150 x 12 mm at each bracket.
+Stack joint movement capacity +/- 20 mm vertical. Unit width 1500 mm typical.
+"""
+
+
+def _seed_documents(s, p, design1, steel_contractor, facade_contractor, apex_user, consultant):
+    """Documents, an open (overdue) RFI, an answered RFI and a submittal under review."""
+    from sqlmodel import select as _select
+
+    from .docs import register_document
+    from .models import RFI, Activity, Submittal
+
+    acts = {a.code: a for a in s.exec(_select(Activity).where(Activity.project_id == p.id)).all()}
+    facade_dwg = design1[0]
+    spec = register_document(s, p.id, SPEC_0844.encode(), "S-0844 curtain wall specification.txt", "text/plain",
+                             number="SPEC-084413", title="Spec 08 44 13 Glazed aluminium curtain walls", revision="R0",
+                             discipline="facade", doc_type="specification")
+    spec.document.status, spec.document.classified = "for_construction", True
+    notes = register_document(s, p.id, STRUCT_NOTES.encode(), "S-001 structural general notes RevC.txt", "text/plain",
+                              title="Structural general notes", discipline="structure", doc_type="drawing")
+    notes.document.status, notes.document.classified = "for_construction", True
+    dwg = register_document(s, p.id, FACADE_DWG.encode(), "F-201_R1 facade bracket details.txt", "text/plain",
+                            title="Unitised facade - bracket and stack joint details", discipline="facade", doc_type="drawing")
+    dwg.document.design_id, dwg.document.activity_id, dwg.document.classified = facade_dwg.id, acts["A12"].id, True
+    for r in (spec, notes, dwg):
+        s.add(r.document)
+
+    s.add(RFI(project_id=p.id, number=1, subject="Facade embed plates on L3-L4 perimeter beams",
+              question="F-201 R1 shows weld-on embed plates at each facade bracket on steel perimeter beams. "
+                       "Batch 2 beams for L3-L4 are being fabricated now. Confirm plate size and spacing so the fabricator "
+                       "can weld them in the shop instead of on site?",
+              raised_by=apex_user.id, contractor_id=steel_contractor.id, ball_in_court="consultant",
+              due_date=d(-3), time_impact=True, activity_id=acts["A6"].id, document_ids=[dwg.document.id],
+              created_at=utcnow() - timedelta(days=10)))
+    s.add(RFI(project_id=p.id, number=2, subject="Deck topping thickness at L2 corridor",
+              question="Is the 75 mm topping maintained over the services trench at grid D/L2?",
+              raised_by=apex_user.id, contractor_id=steel_contractor.id, due_date=d(-20), status="answered",
+              answer="Yes - 75 mm minimum; add T10 @ 200 top mesh over the trench (see S-001 note 2).",
+              answered_by=consultant.id, answered_at=utcnow() - timedelta(days=21), activity_id=acts["A7"].id))
+    s.add(Submittal(project_id=p.id, number=1, title="Unitised panel system - glass and frame", spec_section="08 44 13",
+                    contractor_id=facade_contractor.id, status="under_review", due_date=d(2),
+                    required_by=acts["A13"].planned_start, activity_id=acts["A13"].id))
 
 
 def _seed_network(s, p, ms, proc, design, steel_contractor):

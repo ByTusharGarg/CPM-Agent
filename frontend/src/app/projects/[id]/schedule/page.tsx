@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
+import { SiteBoard } from "@/components/SiteBoard";
+import { useHeader } from "@/lib/useHeader";
 import { api, errMsg, fmtDate, type Me, type Schedule, type ScheduleActivity } from "@/lib/api";
 
 const DAY = 86_400_000;
@@ -21,6 +22,7 @@ export default function SchedulePage() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const header = useHeader(pid);
 
   const load = () => api.schedule(pid).then(setSched).catch((e) => setMsg({ ok: false, text: errMsg(e) }));
   useEffect(() => {
@@ -56,21 +58,14 @@ export default function SchedulePage() {
 
   return (
     <main className="flex h-screen flex-col">
-      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-200 bg-white px-5 py-3">
-        <Link href={`/projects/${pid}`} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
-          <ArrowLeft size={14} /> Project
-        </Link>
-        <h1 className="text-[15px] font-semibold">Schedule</h1>
+      <SiteBoard project={header.project} health={header.health} can={header.can} />
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-rule bg-panel px-5 py-2.5">
         {sched && (
-          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-600">
-            <span>Data date <b>{fmtDate(sched.data_date)}</b></span>
-            <span>Target <b>{fmtDate(sched.target_finish)}</b></span>
-            <span>
-              Forecast <b className={late > 0 ? "text-red-600" : "text-emerald-700"}>{fmtDate(sched.forecast_finish)}</b>
-              {late > 0 && <span className="text-red-600"> ({late} days late)</span>}
-            </span>
-            {sched.has_network && <span>Worst float <b className={minFloat < 0 ? "text-red-600" : ""}>{minFloat} working days</b></span>}
-            {currentBaseline && <span>Baseline: <b>{currentBaseline.name}</b></span>}
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-graphite/80">
+            <span>Progress measured to <b>{fmtDate(sched.data_date)}</b></span>
+            {late > 0 && <span className="text-brick">Finishes {late} days after target</span>}
+            {sched.has_network && <span>Worst float <b className={minFloat < 0 ? "text-brick" : ""}>{minFloat} working days</b></span>}
+            {currentBaseline && <span>Compared with <b>{currentBaseline.name}</b></span>}
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
@@ -80,29 +75,29 @@ export default function SchedulePage() {
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={busy}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded border border-rule px-3 py-1.5 text-sm font-medium hover:bg-concrete disabled:opacity-40"
               >
                 <Upload size={14} /> {busy ? "Importing…" : "Import MS Project / P6"}
               </button>
             </>
           )}
         </div>
-      </header>
-      {msg && <p className={`px-5 py-2 text-sm ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>{msg.text}</p>}
+      </div>
+      {msg && <p className={`px-5 py-2 text-sm ${msg.ok ? "text-site" : "text-brick"}`}>{msg.text}</p>}
 
       {sched && !sched.has_network ? (
-        <div className="p-8 text-sm text-slate-600">
+        <div className="p-8 text-sm text-graphite/80">
           This project is tracked at milestone level only.{" "}
           {canImport ? "Import an MS Project XML or Primavera P6 XER file to get critical-path scheduling." : "Ask the owner to import an MS Project or P6 schedule for critical-path scheduling."}
         </div>
       ) : (
         <>
-          <div className="flex gap-1 border-b border-slate-200 bg-white px-4">
+          <div className="flex gap-1 border-b border-rule bg-panel px-4">
             {(["gantt", "lookahead"] as const).map((k) => (
               <button
                 key={k}
                 onClick={() => setTab(k)}
-                className={`px-3 py-2 text-sm ${tab === k ? "border-b-2 border-slate-900 font-semibold" : "text-slate-500 hover:text-slate-800"}`}
+                className={`px-3 py-2 text-sm ${tab === k ? "border-b-2 border-ink font-semibold" : "text-graphite/70 hover:text-ink"}`}
               >
                 {k === "gantt" ? "Gantt" : "Lookahead"}
               </button>
@@ -113,35 +108,35 @@ export default function SchedulePage() {
             <div className="scroll-thin flex-1 overflow-auto p-5">
               <div className="mb-3 flex items-center gap-2 text-sm">
                 Next
-                <select value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} className="rounded-md border border-slate-200 px-2 py-1">
+                <select value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} className="rounded-md border border-rule px-2 py-1">
                   {[2, 3, 4, 6, 8].map((w) => (
                     <option key={w} value={w}>{w} weeks</option>
                   ))}
                 </select>
-                <span className="text-slate-500">— work in progress or due to start</span>
+                <span className="text-graphite/70">— work in progress or due to start</span>
               </div>
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                  <tr className="border-b border-rule text-left text-xs text-graphite/70">
                     <th className="py-2">Activity</th><th>Status</th><th>Start</th><th>Finish</th><th>Float</th><th>Waiting on</th>
                   </tr>
                 </thead>
                 <tbody>
                   {look.map((a) => (
-                    <tr key={a.id} className="border-b border-slate-100">
+                    <tr key={a.id} className="border-b border-rule">
                       <td className="py-2 pr-3">
-                        <span className={a.critical ? "font-semibold text-red-700" : ""}>{a.name}</span>
-                        {a.critical && <span className="ml-1.5 rounded bg-red-100 px-1 text-[10px] font-semibold text-red-700">CRITICAL</span>}
+                        <span className={a.critical ? "font-semibold text-brick" : ""}>{a.name}</span>
+                        {a.critical && <span className="ml-1.5 rounded bg-brick/10 px-1 text-[10px] font-semibold text-brick">Critical path</span>}
                       </td>
                       <td className="pr-3">{a.status === "in_progress" ? `${a.pct.toFixed(0)}% done` : "to start"}</td>
                       <td className="pr-3">{fmtDate(a.early_start)}</td>
                       <td className="pr-3">{fmtDate(a.early_finish)}</td>
-                      <td className={`pr-3 tabular-nums ${a.total_float < 0 ? "text-red-600" : ""}`}>{a.total_float}d</td>
-                      <td className="text-xs text-slate-600">{driverLabel(a.driver, sched)}</td>
+                      <td className={`pr-3 tabular-nums ${a.total_float < 0 ? "text-brick" : ""}`}>{a.total_float}d</td>
+                      <td className="text-xs text-graphite/80">{driverLabel(a.driver, sched)}</td>
                     </tr>
                   ))}
                   {look.length === 0 && (
-                    <tr><td colSpan={6} className="py-6 text-center text-slate-500">Nothing in this window.</td></tr>
+                    <tr><td colSpan={6} className="py-6 text-center text-graphite/70">Nothing in this window.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -197,20 +192,20 @@ function Gantt({ sched }: { sched: Schedule }) {
   }
 
   return (
-    <div className="scroll-thin flex-1 overflow-auto bg-white">
+    <div className="scroll-thin flex-1 overflow-auto bg-panel">
       <div className="flex min-w-max">
-        <div className="sticky left-0 z-10 w-[340px] shrink-0 border-r border-slate-200 bg-white">
-          <div className="sticky top-0 z-10 flex h-8 items-center border-b border-slate-200 bg-slate-50 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <div className="sticky left-0 z-10 w-[340px] shrink-0 border-r border-rule bg-panel">
+          <div className="sticky top-0 z-10 flex h-8 items-center border-b border-rule bg-concrete/60 px-3 text-[11px] font-semibold text-graphite/70">
             <span className="flex-1">Activity</span><span className="w-12 text-right">Dur</span><span className="w-14 text-right">Float</span>
           </div>
           {rows.map((r, i) =>
             r.kind === "ms" ? (
-              <div key={`m${i}`} className="flex h-7 items-center bg-slate-50 px-3 text-xs font-semibold text-slate-700">{r.name}</div>
+              <div key={`m${i}`} className="flex h-7 items-center bg-concrete/60 px-3 text-xs font-semibold text-graphite">{r.name}</div>
             ) : (
               <div key={r.a.id} className="flex h-7 items-center px-3 text-xs" title={`${r.a.name}\nDriver: ${r.a.driver}`}>
-                <span className={`flex-1 truncate pl-3 ${r.a.critical ? "font-medium text-red-700" : "text-slate-700"}`}>{r.a.name}</span>
-                <span className="w-12 text-right tabular-nums text-slate-500">{r.a.duration}d</span>
-                <span className={`w-14 text-right tabular-nums ${r.a.status === "done" ? "text-slate-300" : r.a.total_float < 0 ? "text-red-600" : "text-slate-600"}`}>
+                <span className={`flex-1 truncate pl-3 ${r.a.critical ? "font-medium text-brick" : "text-graphite"}`}>{r.a.name}</span>
+                <span className="w-12 text-right tabular-nums text-graphite/70">{r.a.duration}d</span>
+                <span className={`w-14 text-right tabular-nums ${r.a.status === "done" ? "text-graphite/50" : r.a.total_float < 0 ? "text-brick" : "text-graphite/80"}`}>
                   {r.a.status === "done" ? "done" : `${r.a.total_float}d`}
                 </span>
               </div>
@@ -218,28 +213,28 @@ function Gantt({ sched }: { sched: Schedule }) {
           )}
         </div>
         <div className="relative" style={{ width }}>
-          <div className="sticky top-0 z-[5] h-8 border-b border-slate-200 bg-slate-50">
+          <div className="sticky top-0 z-[5] h-8 border-b border-rule bg-concrete/60">
             {months.map((m) => (
-              <div key={m.left} className="absolute top-0 h-8 border-l border-slate-200 pl-1 text-[11px] leading-8 text-slate-500" style={{ left: m.left }}>
+              <div key={m.left} className="absolute top-0 h-8 border-l border-rule pl-1 text-[11px] leading-8 text-graphite/70" style={{ left: m.left }}>
                 {m.label}
               </div>
             ))}
           </div>
-          <div className="pointer-events-none absolute bottom-0 top-8 z-[4] w-px bg-slate-900/70" style={{ left: x(sched.data_date) }} title="Data date" />
-          <div className="pointer-events-none absolute bottom-0 top-8 z-[4] w-px border-l border-dashed border-amber-500" style={{ left: x(sched.target_finish) }} title="Target finish" />
+          <div className="pointer-events-none absolute bottom-0 top-8 z-[4] w-px bg-ink/70" style={{ left: x(sched.data_date) }} title="Data date" />
+          <div className="pointer-events-none absolute bottom-0 top-8 z-[4] w-px border-l border-dashed border-hivis" style={{ left: x(sched.target_finish) }} title="Target finish" />
           {rows.map((r, i) =>
             r.kind === "ms" ? (
-              <div key={`m${i}`} className="h-7 bg-slate-50" />
+              <div key={`m${i}`} className="h-7 bg-concrete/60" />
             ) : (
               <div key={r.a.id} className="relative h-7">
                 {r.a.baseline_start && r.a.baseline_finish && (
-                  <div className="absolute top-1 h-1.5 rounded-sm bg-slate-300" style={{ left: x(r.a.baseline_start), width: w(r.a.baseline_start, r.a.baseline_finish) }} title={`Baseline ${r.a.baseline_start} → ${r.a.baseline_finish}`} />
+                  <div className="absolute top-1 h-1.5 rounded-sm bg-rule" style={{ left: x(r.a.baseline_start), width: w(r.a.baseline_start, r.a.baseline_finish) }} title={`Baseline ${r.a.baseline_start} → ${r.a.baseline_finish}`} />
                 )}
                 {r.a.duration === 0 ? (
-                  <div className={`absolute top-2.5 h-3 w-3 rotate-45 ${r.a.critical ? "bg-red-500" : "bg-sky-500"}`} style={{ left: x(r.a.early_start) - 6 }} title={`${r.a.name} ${r.a.early_start}`} />
+                  <div className={`absolute top-2.5 h-3 w-3 rotate-45 ${r.a.critical ? "bg-brick" : "bg-ink-soft"}`} style={{ left: x(r.a.early_start) - 6 }} title={`${r.a.name} ${r.a.early_start}`} />
                 ) : (
                   <div
-                    className={`absolute top-3 h-3 overflow-hidden rounded-sm ${r.a.status === "done" ? "bg-slate-400" : r.a.critical ? "bg-red-400" : "bg-sky-400"}`}
+                    className={`absolute top-3 h-3 overflow-hidden rounded-sm ${r.a.status === "done" ? "bg-rule" : r.a.critical ? "bg-brick" : "bg-ink-soft"}`}
                     style={{ left: x(r.a.early_start), width: w(r.a.early_start, r.a.early_finish) }}
                     title={`${r.a.name}\n${r.a.early_start} → ${r.a.early_finish}\nfloat ${r.a.total_float}d · ${r.a.pct}% done`}
                   >
@@ -251,12 +246,12 @@ function Gantt({ sched }: { sched: Schedule }) {
           )}
         </div>
       </div>
-      <div className="sticky left-0 flex gap-4 border-t border-slate-200 bg-white px-4 py-2 text-[11px] text-slate-500">
-        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-4 rounded-sm bg-slate-300" /> baseline</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm bg-red-400" /> critical</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm bg-sky-400" /> has float</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-px bg-slate-900" /> data date</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-px border-l border-dashed border-amber-500" /> target finish</span>
+      <div className="sticky left-0 flex gap-4 border-t border-rule bg-panel px-4 py-2 text-[11px] text-graphite/70">
+        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-4 rounded-sm bg-rule" /> baseline</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm bg-brick" /> critical</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm bg-ink-soft" /> has float</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-px bg-ink" /> data date</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-px border-l border-dashed border-hivis" /> target finish</span>
       </div>
     </div>
   );

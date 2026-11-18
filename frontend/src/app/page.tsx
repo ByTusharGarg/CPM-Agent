@@ -25,12 +25,12 @@ export default function Home() {
 
   return (
     <main className="flex h-full items-center justify-center p-6">
-      {state === "loading" && <p className="text-slate-500">Loading projects…</p>}
+      {state === "loading" && <p className="text-graphite/70">Loading projects…</p>}
       {state === "empty" && (
         <div className="text-center">
           <h1 className="text-xl font-semibold">No projects yet</h1>
-          <p className="mt-2 text-slate-500">Create your first project to start the manager agent.</p>
-          <Link href="/projects/new" className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-white">
+          <p className="mt-2 text-graphite/70">Create your first project to start the manager agent.</p>
+          <Link href="/projects/new" className="mt-4 inline-block rounded bg-ink px-4 py-2 text-white">
             New project
           </Link>
         </div>
@@ -38,10 +38,10 @@ export default function Home() {
       {state === "error" && (
         <div className="max-w-md text-center">
           <h1 className="text-xl font-semibold">Can’t reach the backend</h1>
-          <p className="mt-2 text-sm text-slate-500">{err}</p>
-          <p className="mt-3 text-sm text-slate-500">
-            Start it with <code className="rounded bg-slate-100 px-1">uvicorn app.main:app --reload</code> in{" "}
-            <code className="rounded bg-slate-100 px-1">backend/</code>.
+          <p className="mt-2 text-sm text-graphite/70">{err}</p>
+          <p className="mt-3 text-sm text-graphite/70">
+            Start it with <code className="rounded bg-concrete px-1">uvicorn app.main:app --reload</code> in{" "}
+            <code className="rounded bg-concrete px-1">backend/</code>.
           </p>
         </div>
       )}

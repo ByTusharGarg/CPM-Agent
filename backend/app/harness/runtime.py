@@ -32,6 +32,37 @@ log = logging.getLogger(__name__)
 # no worker is subscribed to start a worker directly. The Router hears the
 # worker's result, never the raw (untrusted) contractor text.
 FAST_PATH_DISPATCH: dict[str, tuple[str, str, str]] = {
+    "change_order_submitted": (
+        "cost",
+        "Assess change order #{number}: {title}",
+        "A change order was raised (see <source_events>). Check entitlement (contract scope, RFI/design source), "
+        "estimate a fair value, run simulate_schedule for any time impact, and record_co_assessment. Do not approve it.",
+    ),
+    "payapp_submitted": (
+        "cost",
+        "Check pay application #{number}",
+        "A pay application was submitted (see <source_events>). Compare every claimed % with recorded site progress "
+        "(commercial_summary overbilling, get_schedule, recent daily updates and photos). If claims run ahead of progress, "
+        "propose certification at the supportable % with propose_certification and explain each reduction.",
+    ),
+    "document_uploaded": (
+        "document_controller",
+        "Register {number} {title} ({revision})",
+        "A document or new revision was uploaded (see <source_events>). Read its title block, classify it and link it "
+        "to what it serves. If it supersedes a revision, check open RFIs and submittals that may use the old one.",
+    ),
+    "rfi_raised": (
+        "design",
+        "RFI #{number}: {subject}",
+        "A new RFI was raised (see <source_events>). Find the affected activity and impact (set_rfi_impact), "
+        "search the documents for relevant clauses, and report a suggested answer with citations.",
+    ),
+    "submittal_submitted": (
+        "design",
+        "Pre-check submittal #{number}: {title}",
+        "A submittal was submitted for review (see <source_events>). Check it against the specification "
+        "(search_documents) and report compliance points, gaps and the date the linked work needs approval.",
+    ),
     "daily_update": (
         "site_updates",
         "Daily report: {contractor}",
@@ -56,7 +87,9 @@ class _Missing(dict):
 
 
 class Runtime:
-    def __init__(self, llm: LLM, engine=None):
+    def __init__(self, llm: LLM | None = None, engine=None):
+        # A fixed LLM (tests, CLI) is used for every project; None = per-project model
+        # selection from the organization's configured models (see models_registry).
         self.llm = llm
         self.engine = engine or default_engine
         self._queues: dict[int, asyncio.Queue[int]] = {}
@@ -72,6 +105,19 @@ class Runtime:
         self.leases = Leases(self.engine)
         self._queued_ids: set[int] = set()
         self._poller: asyncio.Task | None = None
+
+    def llm_for(self, project_id: int, role: str = "router") -> tuple[LLM, str]:
+        """The LLM client and model name a project's agents should use."""
+        from ..config import settings
+
+        if self.llm is not None:
+            model = {"router": settings.router_model, "watchdog": settings.watchdog_model}.get(role, settings.worker_model)
+            return self.llm, model
+        from .models_registry import client_for, resolve
+
+        with session_scope(self.engine) as s:
+            provider, model, _ = resolve(s, project_id)
+        return client_for(provider, model), model
 
     # ------------------------------------------------------------------ UI fan-out
 

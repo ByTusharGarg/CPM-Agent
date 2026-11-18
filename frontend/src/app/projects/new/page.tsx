@@ -19,7 +19,7 @@ interface CRow {
   trade: string;
 }
 
-const input = "mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400";
+const input = "mt-1 w-full rounded border border-rule px-3 py-2 text-sm outline-none focus:border-ink/50";
 
 export default function NewProject() {
   const router = useRouter();
@@ -75,13 +75,13 @@ export default function NewProject() {
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-8">
-      <Link href="/" className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/" className="flex items-center gap-1 text-sm text-graphite/70 hover:text-ink">
         <ArrowLeft size={14} /> Back
       </Link>
       <h1 className="mt-4 text-xl font-semibold">New project</h1>
-      <p className="text-sm text-slate-500">The manager agent tracks progress against this baseline: scope, budget, timeline and milestones.</p>
+      <p className="text-sm text-graphite/70">The manager agent tracks progress against this baseline: scope, budget, timeline and milestones.</p>
 
-      <div className="mt-5 space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mt-5 space-y-4 rounded-md border border-rule bg-panel p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
             <span className="text-sm font-medium">Project name</span>
@@ -127,7 +127,7 @@ export default function NewProject() {
             <span className="text-sm font-medium">Milestones / work packages</span>
             <button
               onClick={() => setMs([...ms, { name: "", planned_start: "", planned_end: "", budget: "", is_critical: true, depends_on_prev: true }])}
-              className="flex items-center gap-1 text-xs font-medium text-slate-600"
+              className="flex items-center gap-1 text-xs font-medium text-graphite/80"
             >
               <Plus size={12} /> Add
             </button>
@@ -139,11 +139,11 @@ export default function NewProject() {
                 <input className={`${input} col-span-2 mt-0`} type="date" value={m.planned_start} onChange={(e) => setMs(ms.map((x, j) => (j === i ? { ...x, planned_start: e.target.value } : x)))} />
                 <input className={`${input} col-span-2 mt-0`} type="date" value={m.planned_end} onChange={(e) => setMs(ms.map((x, j) => (j === i ? { ...x, planned_end: e.target.value } : x)))} />
                 <input className={`${input} col-span-2 mt-0`} type="number" placeholder="Budget" value={m.budget} onChange={(e) => setMs(ms.map((x, j) => (j === i ? { ...x, budget: e.target.value } : x)))} />
-                <label className="col-span-1 flex items-center gap-1 text-[11px] text-slate-500" title="Depends on the previous milestone">
+                <label className="col-span-1 flex items-center gap-1 text-[11px] text-graphite/70" title="Depends on the previous milestone">
                   <input type="checkbox" disabled={i === 0} checked={m.depends_on_prev} onChange={(e) => setMs(ms.map((x, j) => (j === i ? { ...x, depends_on_prev: e.target.checked } : x)))} />
                   after prev
                 </label>
-                <button className="col-span-1 text-slate-400 hover:text-red-600" onClick={() => setMs(ms.filter((_, j) => j !== i))} aria-label="Remove milestone">
+                <button className="col-span-1 text-graphite/50 hover:text-brick" onClick={() => setMs(ms.filter((_, j) => j !== i))} aria-label="Remove milestone">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -154,7 +154,7 @@ export default function NewProject() {
         <div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Contractors</span>
-            <button onClick={() => setCs([...cs, { name: "", trade: "" }])} className="flex items-center gap-1 text-xs font-medium text-slate-600">
+            <button onClick={() => setCs([...cs, { name: "", trade: "" }])} className="flex items-center gap-1 text-xs font-medium text-graphite/80">
               <Plus size={12} /> Add
             </button>
           </div>
@@ -163,7 +163,7 @@ export default function NewProject() {
               <div key={i} className="grid grid-cols-12 gap-2">
                 <input className={`${input} col-span-6 mt-0`} placeholder="Company" value={c.name} onChange={(e) => setCs(cs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
                 <input className={`${input} col-span-5 mt-0`} placeholder="Trade" value={c.trade} onChange={(e) => setCs(cs.map((x, j) => (j === i ? { ...x, trade: e.target.value } : x)))} />
-                <button className="col-span-1 text-slate-400 hover:text-red-600" onClick={() => setCs(cs.filter((_, j) => j !== i))} aria-label="Remove contractor">
+                <button className="col-span-1 text-graphite/50 hover:text-brick" onClick={() => setCs(cs.filter((_, j) => j !== i))} aria-label="Remove contractor">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -172,10 +172,10 @@ export default function NewProject() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button onClick={submit} disabled={busy} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+          <button onClick={submit} disabled={busy} className="rounded bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
             Create project
           </button>
-          {err && <span className="text-sm text-red-600">{err}</span>}
+          {err && <span className="text-sm text-brick">{err}</span>}
         </div>
       </div>
     </main>

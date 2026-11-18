@@ -46,9 +46,15 @@ DEFAULT_POLICIES: dict[str, str] = {
     "contractor.instruct": "observe",
     "schedule.change": "approval",
     "schedule.rebaseline": "approval",
+    "document.update": "auto",
+    "document.issue": "approval",
+    "rfi.update": "auto",
+    "change_order.assess": "auto",
+    "change_order.approve": "approval",
+    "payapp.certify": "approval",
     "budget.change": "approval",
 }
-LOCKED_APPROVAL = {"schedule.change", "schedule.rebaseline", "budget.change"}
+LOCKED_APPROVAL = {"schedule.change", "schedule.rebaseline", "budget.change", "change_order.approve", "payapp.certify"}
 
 
 @dataclass
@@ -331,6 +337,104 @@ def _rebaseline(s: Session, pid: int, p: dict[str, Any]) -> str:
         proj.target_end_date = h.schedule.project_finish
         s.add(proj)
     return f"New baseline '{nb.name}' with {len(h.schedule.activities)} activities (finish {h.schedule.project_finish})"
+
+
+@action("document.update", "Update document metadata and links (not its approval status)",
+        lambda p: f"Classify document:{p['document_id']}" + (f" as {p['number']}" if p.get("number") else ""))
+def _document_update(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..models import Activity, Document
+
+    d = _get(s, Document, p["document_id"], pid)
+    if p.get("number"):
+        clash = s.exec(select(Document).where(Document.project_id == pid, Document.number == p["number"].upper(), Document.id != d.id)).first()
+        if clash:
+            raise ValueError(f"number {p['number']} already used by document:{clash.id} - upload this file as a new revision of it instead")
+        d.number = p["number"].upper()
+    for k in ("title", "discipline", "doc_type"):
+        if p.get(k):
+            setattr(d, k, p[k])
+    if p.get("design_id"):
+        _get(s, DesignDeliverable, p["design_id"], pid)
+        d.design_id = p["design_id"]
+    if p.get("milestone_id"):
+        _get(s, Milestone, p["milestone_id"], pid)
+        d.milestone_id = p["milestone_id"]
+    if p.get("activity_id"):
+        _get(s, Activity, p["activity_id"], pid)
+        d.activity_id = p["activity_id"]
+    d.classified = True
+    s.add(d)
+    return f"document:{d.id} {d.number or ''} '{d.title}' classified"
+
+
+@action("document.issue", "Issue a document as approved / for construction (approval required)",
+        lambda p: f"Issue document:{p['document_id']} as {p['status'].replace('_', ' ')}")
+def _document_issue(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..models import Document
+
+    d = _get(s, Document, p["document_id"], pid)
+    if p["status"] not in ("approved", "for_construction"):
+        raise ValueError("status must be approved or for_construction")
+    d.status = p["status"]
+    s.add(d)
+    if d.design_id and p["status"] in ("approved", "for_construction"):
+        dd = s.get(DesignDeliverable, d.design_id)
+        dd.status = "approved"
+        s.add(dd)
+    return f"document:{d.id} is now {d.status}"
+
+
+@action("rfi.update", "Record an RFI's schedule/cost impact and linked activity",
+        lambda p: f"Update rfi:{p['rfi_id']} impact")
+def _rfi_update(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..models import RFI, Activity
+
+    r = _get(s, RFI, p["rfi_id"], pid)
+    for k in ("time_impact", "cost_impact"):
+        if k in p:
+            setattr(r, k, bool(p[k]))
+    if p.get("activity_id"):
+        _get(s, Activity, p["activity_id"], pid)
+        r.activity_id = p["activity_id"]
+    if p.get("ball_in_court"):
+        r.ball_in_court = p["ball_in_court"]
+    s.add(r)
+    return f"RFI #{r.number}: time_impact={r.time_impact} cost_impact={r.cost_impact} activity={r.activity_id}"
+
+
+@action("change_order.assess", "Record the commercial assessment of a change order",
+        lambda p: f"Assess change_order:{p['change_order_id']}" + (f" at {p['recommended_amount']:,.0f}" if p.get("recommended_amount") is not None else ""))
+def _co_assess(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..models import ChangeOrder
+
+    co = _get(s, ChangeOrder, p["change_order_id"], pid)
+    co.assessment = p["assessment"]
+    if p.get("recommended_amount") is not None:
+        co.recommended_amount = float(p["recommended_amount"])
+    if p.get("time_impact_days") is not None:
+        co.time_impact_days = int(p["time_impact_days"])
+    s.add(co)
+    return f"CO #{co.number} assessed"
+
+
+@action("change_order.approve", "Approve or reject a change order (owner approval required)",
+        lambda p: f"{'Approve' if p.get('approve', True) else 'Reject'} change_order:{p['change_order_id']}"
+                  + (f" at {float(p['amount']):,.0f}" if p.get("amount") is not None else ""))
+def _co_approve(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..commercial_services import decide_change_order_core
+
+    co = decide_change_order_core(s, p["change_order_id"], bool(p.get("approve", True)), p.get("amount"), p.get("note", ""), None)
+    return f"CO #{co.number} {co.stage}" + (f" at {co.approved_amount:,.0f}" if co.approved_amount is not None else "")
+
+
+@action("payapp.certify", "Certify a pay application, optionally at reduced %s (owner approval required)",
+        lambda p: f"Certify payapp:{p['pay_app_id']}" + (" with reductions" if p.get("line_pcts") else ""))
+def _payapp_certify(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..commercial_services import certify_core
+
+    pcts = {int(k): float(v) for k, v in (p.get("line_pcts") or {}).items()}
+    app = certify_core(s, p["pay_app_id"], pcts, p.get("note", ""), None)
+    return f"Pay app #{app.number} certified at {app.certified_to_date:,.0f}; payable {app.amount_due:,.0f}"
 
 
 @action("design.update", "Update a design deliverable's status/due date",

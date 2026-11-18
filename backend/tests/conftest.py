@@ -12,6 +12,7 @@ os.environ["CPM_ENABLE_SCHEDULER"] = "0"
 os.environ["CPM_AS_OF_DATE"] = "2026-11-18"
 os.environ["CPM_DEV_SHOW_OTP"] = "1"
 os.environ["CPM_LLM_PROVIDER"] = "stub"
+os.environ["CPM_STUB_LLM"] = "1"  # the API app never calls a live model in tests
 os.environ["CPM_STORAGE_DIR"] = str(_tmp.parent / "storage")
 os.environ.update({  # phase 8 channels - talk to fakes in tests
     "CPM_WA_TOKEN": "test-token", "CPM_WA_PHONE_NUMBER_ID": "PNID", "CPM_WA_APP_SECRET": "app-secret",

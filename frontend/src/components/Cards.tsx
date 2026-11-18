@@ -38,9 +38,9 @@ export function AlertCard({
   }
 
   return (
-    <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-        <AlertTriangle size={16} className={msg.meta.severity === "critical" ? "text-red-600" : "text-amber-600"} />
+    <div className={`w-full max-w-2xl overflow-hidden rounded-md border border-rule bg-panel ${open ? "border-l-[5px] border-l-hivis" : ""}`}>
+      <div className="flex items-center gap-2 border-b border-rule bg-concrete/60 px-4 py-2.5">
+        <AlertTriangle size={16} className={msg.meta.severity === "critical" ? "text-brick" : "text-[#7a5a00]"} />
         <span className="flex-1 text-sm font-semibold">{msg.meta.title}</span>
         <SeverityBadge severity={msg.meta.severity ?? "warning"} />
       </div>
@@ -53,28 +53,28 @@ export function AlertCard({
                 key={i}
                 disabled={!open || busy}
                 onClick={() => setPicked(i)}
-                className={`w-full rounded-lg border px-3 py-2.5 text-left transition ${
-                  picked === i && open ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-300"
+                className={`w-full rounded border px-3 py-2.5 text-left transition ${
+                  picked === i && open ? "border-ink ring-1 ring-ink" : "border-rule hover:border-rule"
                 } ${!open ? "opacity-70" : ""}`}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">{o.label}</span>
                   {recommended === i && (
-                    <span className="flex items-center gap-0.5 rounded bg-amber-100 px-1.5 text-[11px] font-medium text-amber-800">
+                    <span className="flex items-center gap-0.5 rounded bg-hivis-soft px-1.5 text-[11px] font-medium text-[#7a5a00]">
                       <Star size={11} /> Recommended
                     </span>
                   )}
-                  <span className="ml-auto flex gap-3 text-xs text-slate-500">
+                  <span className="ml-auto flex gap-3 text-xs text-graphite/70">
                     {o.impact_days != null && (
-                      <span className={o.impact_days > 0 ? "text-emerald-700" : ""}>
+                      <span className={o.impact_days > 0 ? "text-site" : ""}>
                         {o.impact_days > 0 ? `−${o.impact_days}d` : `${o.impact_days}d`} delay
                       </span>
                     )}
                     {o.impact_cost != null && <span>{o.impact_cost > 0 ? `+${money(o.impact_cost, currency)}` : "no extra cost"}</span>}
                   </span>
                 </div>
-                <p className="mt-0.5 text-sm text-slate-600">{o.description}</p>
-                {o.risks && <p className="mt-0.5 text-xs text-slate-500">Risks: {o.risks}</p>}
+                <p className="mt-0.5 text-sm text-graphite/80">{o.description}</p>
+                {o.risks && <p className="mt-0.5 text-xs text-graphite/70">Risks: {o.risks}</p>}
               </button>
             ))}
           </div>
@@ -86,14 +86,14 @@ export function AlertCard({
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder={options.length ? "Optional notes or conditions…" : "Your instructions…"}
-              className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+              className="w-full resize-none rounded border border-rule px-3 py-2 text-sm outline-none focus:border-ink/50"
             />
             <div className="flex flex-wrap items-center gap-2">
               {options.length > 0 && (
                 <button
                   disabled={picked === null || busy}
                   onClick={() => submit(picked)}
-                  className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+                  className="rounded bg-ink px-3.5 py-1.5 text-sm font-medium text-white disabled:opacity-40"
                 >
                   {picked !== null ? `Go with “${options[picked].label}”` : "Pick an option"}
                 </button>
@@ -101,15 +101,15 @@ export function AlertCard({
               <button
                 disabled={!notes.trim() || busy}
                 onClick={() => submit(null)}
-                className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-sm font-medium disabled:opacity-40"
+                className="rounded border border-rule px-3.5 py-1.5 text-sm font-medium disabled:opacity-40"
               >
                 {options.length ? "Do something else (use my notes)" : "Send instructions"}
               </button>
-              {err && <span className="text-sm text-red-600">{err}</span>}
+              {err && <span className="text-sm text-brick">{err}</span>}
             </div>
           </div>
         ) : (
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-graphite/70">
             <Check size={14} /> Decided
           </div>
         )}
@@ -138,11 +138,11 @@ export function ApprovalCard({ msg, open, onDone }: { msg: ChatMessage; open: bo
   }
 
   return (
-    <div className="w-full max-w-2xl rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 shadow-sm">
-      <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-        <ShieldCheck size={16} /> Approval required · <span className="font-mono text-xs">{msg.meta.action}</span>
+    <div className="w-full max-w-2xl rounded-md border border-hivis bg-hivis-soft px-4 py-3 shadow-sm">
+      <div className="flex items-center gap-2 text-sm font-semibold text-[#7a5a00]">
+        <ShieldCheck size={16} /> Your approval is needed
       </div>
-      <div className="mt-1.5 text-slate-800">
+      <div className="mt-1.5 text-graphite">
         <Markdown>{msg.content}</Markdown>
       </div>
       {open && !outcome ? (
@@ -150,21 +150,21 @@ export function ApprovalCard({ msg, open, onDone }: { msg: ChatMessage; open: bo
           <button
             disabled={busy}
             onClick={() => decide(true)}
-            className="flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+            className="flex items-center gap-1 rounded bg-ink px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
           >
             <Check size={14} /> Approve
           </button>
           <button
             disabled={busy}
             onClick={() => decide(false)}
-            className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium disabled:opacity-40"
+            className="flex items-center gap-1 rounded border border-rule bg-panel px-3 py-1.5 text-sm font-medium disabled:opacity-40"
           >
             <X size={14} /> Reject
           </button>
-          {err && <span className="text-sm text-red-600">{err}</span>}
+          {err && <span className="text-sm text-brick">{err}</span>}
         </div>
       ) : (
-        <div className="mt-2 text-xs text-slate-500">{outcome ?? "Handled"}</div>
+        <div className="mt-2 text-xs text-graphite/70">{outcome ?? "Handled"}</div>
       )}
     </div>
   );

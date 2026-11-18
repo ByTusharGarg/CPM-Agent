@@ -2,34 +2,44 @@ import type { ReactNode } from "react";
 import type { Health } from "@/lib/api";
 
 const dot: Record<string, string> = {
-  green: "bg-emerald-500",
-  amber: "bg-amber-500",
-  red: "bg-red-500",
+  green: "bg-site",
+  amber: "bg-hivis",
+  red: "bg-brick",
 };
+const healthLabel: Record<string, string> = { green: "On track", amber: "Watch", red: "Late" };
 
+/** Status never relies on colour alone: the dot carries a title and screen-reader label. */
 export function HealthDot({ status, className = "" }: { status: Health | string; className?: string }) {
-  return <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${dot[status] ?? "bg-slate-300"} ${className}`} />;
+  return (
+    <span
+      role="img"
+      aria-label={healthLabel[status] ?? "Unknown"}
+      title={healthLabel[status] ?? "Unknown"}
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${dot[status] ?? "bg-rule"} ${className}`}
+    />
+  );
 }
 
 const sev: Record<string, string> = {
-  critical: "bg-red-50 text-red-700 ring-red-200",
-  warning: "bg-amber-50 text-amber-800 ring-amber-200",
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
+  critical: "border-brick text-brick",
+  warning: "border-[#b8890b] text-[#7a5a00]",
+  info: "border-ink-soft text-ink-soft",
 };
+const sevLabel: Record<string, string> = { critical: "Critical", warning: "Warning", info: "Info" };
 
 export function SeverityBadge({ severity }: { severity: string }) {
   return (
-    <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ${sev[severity] ?? sev.info}`}>
-      {severity}
+    <span className={`rounded-sm border px-1.5 text-[12px] font-semibold leading-5 ${sev[severity] ?? sev.info}`}>
+      {sevLabel[severity] ?? severity}
     </span>
   );
 }
 
 export function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
   return (
-    <section className="border-b border-slate-200 px-4 py-4">
-      <div className="mb-2.5 flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
+    <section className="border-b border-rule px-4 py-4">
+      <div className="mb-2.5 flex items-baseline justify-between gap-3">
+        <h3 className="font-display text-[17px] font-semibold leading-tight text-ink">{title}</h3>
         {right}
       </div>
       {children}
@@ -38,32 +48,46 @@ export function Section({ title, right, children }: { title: string; right?: Rea
 }
 
 const statusColor: Record<string, string> = {
-  running: "bg-sky-100 text-sky-700",
-  queued: "bg-slate-100 text-slate-600",
-  done: "bg-emerald-100 text-emerald-700",
-  failed: "bg-red-100 text-red-700",
-  cancelled: "bg-slate-100 text-slate-500",
-  executed: "bg-emerald-100 text-emerald-700",
-  approved: "bg-emerald-100 text-emerald-700",
-  observed: "bg-violet-100 text-violet-700",
-  pending_approval: "bg-amber-100 text-amber-800",
-  rejected: "bg-red-100 text-red-700",
-  blocked: "bg-slate-100 text-slate-500",
+  running: "text-ink-soft",
+  queued: "text-graphite/70",
+  done: "text-site",
+  failed: "text-brick",
+  cancelled: "text-graphite/60",
+  executed: "text-site",
+  approved: "text-site",
+  approved_as_noted: "text-site",
+  certified: "text-site",
+  answered: "text-site",
+  for_construction: "text-site",
+  observed: "text-[#6250d6]",
+  pending_approval: "text-[#7a5a00]",
+  awaiting_owner: "text-[#7a5a00]",
+  submitted: "text-[#7a5a00]",
+  under_review: "text-[#7a5a00]",
+  for_review: "text-[#7a5a00]",
+  open: "text-[#7a5a00]",
+  revise_resubmit: "text-brick",
+  rejected: "text-brick",
+  blocked: "text-graphite/60",
 };
 
+/** Status in words (sentence case) with a small leading mark - readable without colour. */
 export function StatusPill({ status }: { status: string }) {
+  const text = status.replace(/_/g, " ");
   return (
-    <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${statusColor[status] ?? "bg-slate-100 text-slate-600"}`}>
-      {status.replace("_", " ")}
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[13px] font-medium ${statusColor[status] ?? "text-graphite/70"}`}>
+      <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+      {text.charAt(0).toUpperCase() + text.slice(1)}
     </span>
   );
 }
 
 export const WORKER_LABEL: Record<string, string> = {
-  design: "Design",
+  design: "Design coordinator",
   procurement: "Procurement",
   site_updates: "Site updates",
-  cost: "Cost",
+  cost: "Commercial manager",
   planner: "Planner",
-  reporter: "Reporter",
+  reporter: "Report writer",
+  document_controller: "Document controller",
 };
