@@ -17,24 +17,26 @@ export function RightPanel({ state }: { state: ProjectState }) {
   const tabs: { id: Tab; label: string; badge?: number }[] = [
     { id: "overview", label: "Overview", badge: needsCount },
     { id: "agents", label: "Agents", badge: running },
-    { id: "autonomy", label: "Autonomy" },
+    { id: "autonomy", label: "Rules" },
     { id: "reports", label: "Reports" },
     { id: "team", label: "Team" },
   ];
   return (
     <aside className="hidden w-[380px] shrink-0 flex-col border-l border-rule bg-panel lg:flex">
-      <div className="flex gap-1 border-b border-rule px-2 pt-2">
+      <div role="tablist" className="scroll-thin flex shrink-0 gap-0.5 overflow-x-auto border-b border-rule px-2 pt-1.5">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 rounded-t-md px-3 py-2 text-sm ${
-              tab === t.id ? "border-b-2 border-ink font-semibold" : "text-graphite/70 hover:text-ink"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`flex shrink-0 items-center gap-1 whitespace-nowrap border-b-2 px-2 py-2 font-display text-[15px] ${
+              tab === t.id ? "border-ink font-semibold text-ink" : "border-transparent font-medium text-graphite/70 hover:text-ink"
             }`}
           >
             {t.label}
             {!!t.badge && (
-              <span className={`rounded-full px-1.5 text-[11px] font-semibold leading-5 ${t.id === "overview" ? "bg-brick text-white" : "bg-ink/5 text-ink-soft"}`}>
+              <span className={`rounded-full px-1.5 text-[11px] font-semibold leading-5 ${t.id === "overview" ? "bg-hivis text-ink" : "bg-ink/5 text-ink-soft"}`}>
                 {t.badge}
               </span>
             )}

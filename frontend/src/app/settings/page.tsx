@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { api, errMsg, timeAgo, type Me, type NotificationPrefs, type OutboxItem } from "@/lib/api";
+import { ModelSettings } from "@/components/ModelSettings";
 import { StatusPill } from "@/components/ui";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -114,6 +115,8 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <ModelSettings isAdmin={!!me?.is_org_admin} />
 
       {status && (
         <div className="mt-5 rounded-md border border-rule bg-panel p-5 text-sm">

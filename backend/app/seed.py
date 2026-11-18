@@ -40,6 +40,14 @@ def seed(eng=None) -> list[int]:
         org = Organization(name="Riverside Developers")
         s.add(org)
         s.flush()
+        from .models import ModelConfig
+
+        s.add_all([  # models the agents can use; the local Ollama model is the default
+            ModelConfig(org_id=org.id, label="Qwen3 8B (local)", provider="ollama", model="qwen3:8b", is_default=True),
+            ModelConfig(org_id=org.id, label="Claude Opus 5.5", provider="anthropic", model="claude-opus-5-5"),
+            ModelConfig(org_id=org.id, label="Claude Sonnet 5.5", provider="anthropic", model="claude-sonnet-5-5"),
+            ModelConfig(org_id=org.id, label="Offline placeholder", provider="stub", model="stub"),
+        ])
         # ------------------------------------------------------------ project 1 (behind)
         p = Project(
             org_id=org.id,

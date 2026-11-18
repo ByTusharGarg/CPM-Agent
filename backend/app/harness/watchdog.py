@@ -67,8 +67,9 @@ async def watchdog_tick(rt: "Runtime", use_llm: bool = True) -> list[dict[str, A
             verdict = f"no progress for more than {settings.watchdog_stuck_minutes} minutes"
         elif use_llm and wi.turns_used >= DRIFT_CHECK_AFTER_TURNS:
             try:
-                resp = await rt.llm.complete(
-                    model=settings.watchdog_model,
+                judge, judge_model = rt.llm_for(wi.project_id, "watchdog")
+                resp = await judge.complete(
+                    model=judge_model,
                     system=JUDGE_SYSTEM,
                     messages=[{
                         "role": "user",

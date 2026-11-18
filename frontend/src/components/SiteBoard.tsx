@@ -36,7 +36,7 @@ export function SiteBoard({
     <header className="bg-ink text-white">
       <div className="flex flex-wrap items-end gap-x-8 gap-y-3 px-6 pb-3 pt-4">
         <div className="min-w-0 flex-1">
-          <h1 className="truncate font-display text-[28px] font-bold leading-none tracking-[0.01em] text-white">
+          <h1 className="line-clamp-2 font-display text-[28px] font-bold leading-[1.05] tracking-[0.01em] text-white">
             {project?.name ?? "…"}
           </h1>
           <p className="mt-1.5 truncate text-[14px] text-white/70">

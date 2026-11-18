@@ -331,6 +331,19 @@ export const api = {
     req<PayAppItem>(`/api/pay-apps/${appId}/certify`, { method: "POST", body: JSON.stringify({ line_pcts, note }) }),
   rejectPayApp: (appId: number, note: string) =>
     req<PayAppItem>(`/api/pay-apps/${appId}/reject`, { method: "POST", body: JSON.stringify({ note }) }),
+  // LLM models
+  models: () => req<ModelConfigItem[]>("/api/models"),
+  discoverModels: () =>
+    req<{ ollama: { reachable: boolean; url: string; models: { model: string; size_gb: number; family: string }[] };
+          anthropic: { key_present: boolean; models: { model: string; label: string }[] } }>("/api/models/discover"),
+  addModel: (body: { label: string; provider: string; model: string; is_default?: boolean }) =>
+    req<ModelConfigItem>("/api/models", { method: "POST", body: JSON.stringify(body) }),
+  patchModel: (mid: number, body: { label?: string; enabled?: boolean; is_default?: boolean }) =>
+    req<ModelConfigItem>(`/api/models/${mid}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteModel: (mid: number) => req(`/api/models/${mid}`, { method: "DELETE" }),
+  projectModel: (id: number) => req<ProjectModel>(`/api/projects/${id}/model`),
+  setProjectModel: (id: number, model_config_id: number | null) =>
+    req<ProjectModel>(`/api/projects/${id}/model`, { method: "PUT", body: JSON.stringify({ model_config_id }) }),
   // files
   upload: (id: number, file: File) => {
     const fd = new FormData();
@@ -560,4 +573,24 @@ export interface Commercial {
   contracts: ContractItem[];
   change_orders: ChangeOrderItem[];
   pay_apps: PayAppItem[];
+}
+
+export interface ModelConfigItem {
+  id: number;
+  label: string;
+  provider: "ollama" | "anthropic" | "stub";
+  model: string;
+  enabled: boolean;
+  is_default: boolean;
+  available: boolean;
+  status: string;
+}
+
+export interface ProjectModel {
+  model_config_id: number | null;
+  provider: string;
+  model: string;
+  label: string;
+  available: boolean;
+  status: string;
 }

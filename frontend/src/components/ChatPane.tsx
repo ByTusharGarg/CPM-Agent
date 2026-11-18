@@ -7,6 +7,7 @@ import type { ProjectState } from "@/lib/useProject";
 import { errMsg } from "@/lib/api";
 import { AlertCard, ApprovalCard } from "./Cards";
 import { Markdown } from "./Markdown";
+import { ModelPicker } from "./ModelPicker";
 import { SiteBoard } from "./SiteBoard";
 
 const SUGGESTIONS = [
@@ -162,6 +163,11 @@ export function ChatPane({ state }: { state: ProjectState }) {
               <ArrowUp size={16} />
             </button>
           </div>
+          )}
+          {project && (
+            <div className="mt-2">
+              <ModelPicker projectId={project.id} canChange={canChat} />
+            </div>
           )}
           {state.error && (
             <p className="mt-1.5 text-xs text-brick">

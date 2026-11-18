@@ -39,12 +39,15 @@ body {
   font-feature-settings: "tnum" 1; /* tabular figures: dates and money line up */
 }
 
-h1,
-h2,
-h3 {
-  font-family: var(--font-display);
-  color: var(--color-ink);
-  letter-spacing: 0.005em;
+/* In the base layer so utility classes (e.g. text-white on the site board) win. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    letter-spacing: 0.005em;
+  }
 }
 
 :focus-visible {

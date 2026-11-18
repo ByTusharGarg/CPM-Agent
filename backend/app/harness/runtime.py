@@ -87,7 +87,9 @@ class _Missing(dict):
 
 
 class Runtime:
-    def __init__(self, llm: LLM, engine=None):
+    def __init__(self, llm: LLM | None = None, engine=None):
+        # A fixed LLM (tests, CLI) is used for every project; None = per-project model
+        # selection from the organization's configured models (see models_registry).
         self.llm = llm
         self.engine = engine or default_engine
         self._queues: dict[int, asyncio.Queue[int]] = {}
@@ -103,6 +105,19 @@ class Runtime:
         self.leases = Leases(self.engine)
         self._queued_ids: set[int] = set()
         self._poller: asyncio.Task | None = None
+
+    def llm_for(self, project_id: int, role: str = "router") -> tuple[LLM, str]:
+        """The LLM client and model name a project's agents should use."""
+        from ..config import settings
+
+        if self.llm is not None:
+            model = {"router": settings.router_model, "watchdog": settings.watchdog_model}.get(role, settings.worker_model)
+            return self.llm, model
+        from .models_registry import client_for, resolve
+
+        with session_scope(self.engine) as s:
+            provider, model, _ = resolve(s, project_id)
+        return client_for(provider, model), model
 
     # ------------------------------------------------------------------ UI fan-out
 

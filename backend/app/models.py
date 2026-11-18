@@ -111,6 +111,19 @@ class Notification(SQLModel, table=True):
     sent_at: Optional[datetime] = None
 
 
+class ModelConfig(SQLModel, table=True):
+    """An LLM the organization has configured for its agents (chosen per project in the chat)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    org_id: int = Field(foreign_key="organization.id", index=True)
+    label: str  # shown in the chat, e.g. "Qwen3 8B (local)"
+    provider: str  # ollama | anthropic | stub
+    model: str  # e.g. "qwen3:8b", "claude-opus-5-5"
+    enabled: bool = True
+    is_default: bool = False
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class StoredFile(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: Optional[int] = Field(default=None, foreign_key="project.id", index=True)
@@ -159,6 +172,7 @@ class Project(SQLModel, table=True):
     # Working calendar for CPM: weekday numbers (Mon=0) that are working days, plus holidays.
     work_days: str = "0,1,2,3,4,5"  # Mon-Sat (6-day week, common on Indian sites)
     holidays: list = _json(list)     # ["2026-11-01", ...]
+    model_config_id: Optional[int] = Field(default=None, foreign_key="modelconfig.id")  # None = organization default
     created_at: datetime = Field(default_factory=utcnow)
 
 
