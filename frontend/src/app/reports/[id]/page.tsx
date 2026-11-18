@@ -28,20 +28,20 @@ export default function ReportPage() {
   return (
     <main className="mx-auto max-w-3xl px-5 py-8">
       <div className="flex items-center justify-between">
-        <Link href={r?.project_id ? `/projects/${r.project_id}` : "/"} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+        <Link href={r?.project_id ? `/projects/${r.project_id}` : "/"} className="flex items-center gap-1 text-sm text-graphite/70 hover:text-ink">
           <ArrowLeft size={14} /> Back
         </Link>
         {r && (
-          <button onClick={download} className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm">
+          <button onClick={download} className="flex items-center gap-1 rounded border border-rule bg-panel px-3 py-1.5 text-sm">
             <Download size={14} /> Markdown
           </button>
         )}
       </div>
-      {err && <p className="mt-6 text-red-600">{err}</p>}
+      {err && <p className="mt-6 text-brick">{err}</p>}
       {r && (
-        <article className="mt-4 rounded-xl border border-slate-200 bg-white p-6">
-          <p className="text-xs text-slate-500">
-            {r.period} · generated {fmtDate(r.created_at)}
+        <article className="mt-4 rounded-md border border-rule bg-panel p-6">
+          <p className="text-xs text-graphite/70">
+            {r.period}, written {fmtDate(r.created_at)}
           </p>
           <Markdown>{r.content}</Markdown>
         </article>

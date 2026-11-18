@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUp, Bot, FileText, Loader2, Wifi, WifiOff } from "lucide-react";
+import { ArrowUp, FileText, Loader2 } from "lucide-react";
 import type { ProjectState } from "@/lib/useProject";
-import { errMsg, fmtDate } from "@/lib/api";
+import { errMsg } from "@/lib/api";
 import { AlertCard, ApprovalCard } from "./Cards";
 import { Markdown } from "./Markdown";
-import { HealthDot } from "./ui";
+import { SiteBoard } from "./SiteBoard";
 
 const SUGGESTIONS = [
   "How are we doing overall?",
@@ -52,41 +52,7 @@ export function ChatPane({ state }: { state: ProjectState }) {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-3">
-        {health && <HealthDot status={health.status} />}
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold">{project?.name ?? "…"}</h1>
-          <p className="truncate text-xs text-slate-500">
-            {project?.location} · target {fmtDate(project?.target_end_date)}
-            {health && health.project_slip_days > 0 && (
-              <span className="text-red-600"> · forecast {fmtDate(health.forecast_end)} ({health.project_slip_days}d late)</span>
-            )}
-          </p>
-        </div>
-        <Link
-          href={`/projects/${project?.id}/schedule`}
-          className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50 sm:block"
-        >
-          Schedule
-        </Link>
-        <Link
-          href={`/projects/${project?.id}/documents`}
-          className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50 sm:block"
-        >
-          Documents
-        </Link>
-        {state.can("update.submit") && (
-        <Link
-          href={`/projects/${project?.id}/updates`}
-          className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50 sm:block"
-        >
-          Daily report form
-        </Link>
-        )}
-        <span title={connected ? "Live" : "Reconnecting…"} className={connected ? "text-emerald-600" : "text-slate-400"}>
-          {connected ? <Wifi size={16} /> : <WifiOff size={16} />}
-        </span>
-      </header>
+      <SiteBoard project={project} health={health} connected={connected} can={state.can} />
 
       <div className="scroll-thin flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6">
@@ -107,9 +73,9 @@ export function ChatPane({ state }: { state: ProjectState }) {
               <Row key={m.id} role={m.role}>
                 <Bubble role={m.role}>
                   {m.role === "owner" && (m.meta?.by || (m.meta?.channel && m.meta.channel !== "web")) && (
-                    <div className="mb-0.5 text-[11px] text-slate-300">
+                    <div className="mb-0.5 text-[11px] text-graphite/50">
                       {m.meta.by}
-                      {m.meta.channel && m.meta.channel !== "web" ? ` · via ${m.meta.channel === "whatsapp" ? "WhatsApp" : m.meta.channel}` : ""}
+                      {m.meta.channel && m.meta.channel !== "web" ? ` via ${m.meta.channel === "whatsapp" ? "WhatsApp" : m.meta.channel}` : ""}
                     </div>
                   )}
                   <Markdown>{m.content}</Markdown>
@@ -118,7 +84,7 @@ export function ChatPane({ state }: { state: ProjectState }) {
                       {m.meta.refs
                         .filter((r: string) => r.startsWith("report:"))
                         .map((r: string) => (
-                          <Link key={r} href={`/reports/${r.split(":")[1]}`} className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium hover:bg-slate-200">
+                          <Link key={r} href={`/reports/${r.split(":")[1]}`} className="flex items-center gap-1 rounded-md bg-concrete px-2 py-1 text-xs font-medium hover:bg-rule/60">
                             <FileText size={12} /> Open report
                           </Link>
                         ))}
@@ -138,7 +104,7 @@ export function ChatPane({ state }: { state: ProjectState }) {
           )}
           {waiting && (
             <Row role="manager">
-              <div className="flex items-center gap-2 rounded-2xl px-1 py-1 text-sm text-slate-500">
+              <div className="flex items-center gap-2 rounded-md px-1 py-1 text-sm text-graphite/70">
                 <Loader2 size={14} className="animate-spin" /> Working…
               </div>
             </Row>
@@ -146,8 +112,8 @@ export function ChatPane({ state }: { state: ProjectState }) {
           {activity.length > 0 && (
             <div className="ml-11 flex flex-wrap gap-1.5">
               {activity.map((a) => (
-                <span key={a.key} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600">
-                  <span className="font-medium text-slate-800">{a.actor}</span> · {humanTool(a.tool)}
+                <span key={a.key} className="rounded-full border border-rule bg-panel px-2.5 py-1 text-xs text-graphite/80">
+                  <span className="font-medium text-graphite">{a.actor}</span> is {humanTool(a.tool)}
                 </span>
               ))}
             </div>
@@ -156,24 +122,24 @@ export function ChatPane({ state }: { state: ProjectState }) {
         </div>
       </div>
 
-      <div className="border-t border-slate-200 bg-white px-5 py-3">
+      <div className="border-t border-rule bg-panel px-5 py-3">
         <div className="mx-auto max-w-3xl">
           {!canChat && project && (
-            <p className="rounded-xl bg-slate-50 px-4 py-3 text-center text-sm text-slate-500">
+            <p className="rounded-md bg-concrete/60 px-4 py-3 text-center text-sm text-graphite/70">
               Read-only: your role on this project ({project.my_role.replace("_", " ")}) can follow the conversation but not message the manager.
             </p>
           )}
           {canChat && chat.length <= 2 && (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((s) => (
-                <button key={s} onClick={() => submit(s)} className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50">
+                <button key={s} onClick={() => submit(s)} className="rounded-full border border-rule px-3 py-1 text-xs text-graphite/80 hover:bg-concrete">
                   {s}
                 </button>
               ))}
             </div>
           )}
           {canChat && (
-          <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 focus-within:border-slate-400">
+          <div className="flex items-end gap-2 rounded-md border border-rule bg-panel px-3 py-2 focus-within:border-ink/50">
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -191,14 +157,14 @@ export function ChatPane({ state }: { state: ProjectState }) {
               onClick={() => submit()}
               disabled={!text.trim() || sending}
               aria-label="Send"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white disabled:opacity-30"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-white disabled:opacity-30"
             >
               <ArrowUp size={16} />
             </button>
           </div>
           )}
           {state.error && (
-            <p className="mt-1.5 text-xs text-red-600">
+            <p className="mt-1.5 text-xs text-brick">
               {state.error}{" "}
               <button className="underline" onClick={() => state.setError(null)}>
                 dismiss
@@ -214,29 +180,27 @@ export function ChatPane({ state }: { state: ProjectState }) {
 function Row({ role, children }: { role: string; children: React.ReactNode }) {
   if (role === "owner") return <div className="flex justify-end">{children}</div>;
   return (
-    <div className="flex gap-3">
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white">
-        <Bot size={16} />
-      </div>
-      <div className="min-w-0 flex-1">{children}</div>
+    <div className="border-l-2 border-ink/25 pl-4">
+      <div className="mb-0.5 font-display text-[14px] font-semibold text-ink">Project manager</div>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
 
 function Bubble({ role, children }: { role: string; children: React.ReactNode }) {
   return role === "owner" ? (
-    <div className="max-w-[80%] rounded-2xl rounded-br-md bg-slate-900 px-4 py-2.5 text-white [&_.md_code]:bg-slate-700">{children}</div>
+    <div className="max-w-[78%] rounded-md bg-ink px-4 py-2.5 text-white [&_.md_a]:text-white [&_.md_code]:bg-panel/15">{children}</div>
   ) : (
-    <div className="max-w-full text-slate-800">{children}</div>
+    <div className="max-w-[72ch] text-graphite">{children}</div>
   );
 }
 
 function Typing() {
   return (
     <span className="typing inline-flex gap-1 py-2">
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+      <span className="h-1.5 w-1.5 rounded-full bg-rule" />
+      <span className="h-1.5 w-1.5 rounded-full bg-rule" />
+      <span className="h-1.5 w-1.5 rounded-full bg-rule" />
     </span>
   );
 }

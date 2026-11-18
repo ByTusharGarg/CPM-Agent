@@ -88,6 +88,10 @@ from .api_docs import router as docs_router  # noqa: E402
 
 app.include_router(docs_router)
 
+from .api_commercial import router as commercial_router  # noqa: E402
+
+app.include_router(commercial_router)
+
 
 @app.exception_handler(ServiceError)
 async def _service_error(request: Request, exc: ServiceError):

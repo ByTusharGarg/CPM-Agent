@@ -319,6 +319,18 @@ export const api = {
     fd.append("notes", notes);
     return req<SubmittalItem>(`/api/submittals/${sid}/resubmit`, { method: "POST", body: fd });
   },
+  // money
+  commercial: (id: number) => req<Commercial>(`/api/projects/${id}/commercial`),
+  submitChangeOrder: (id: number, body: { title: string; description?: string; reason?: string; proposed_amount: number; time_impact_days?: number; contract_id?: number | null; source_ref?: string }) =>
+    req<ChangeOrderItem>(`/api/projects/${id}/change-orders`, { method: "POST", body: JSON.stringify(body) }),
+  decideChangeOrder: (coId: number, approve: boolean, amount: number | null, note = "") =>
+    req<ChangeOrderItem>(`/api/change-orders/${coId}/decide`, { method: "POST", body: JSON.stringify({ approve, amount, note }) }),
+  submitPayApp: (id: number, body: { contract_id: number; claims: { contract_line_id: number; claimed_pct: number }[]; notes?: string }) =>
+    req<PayAppItem>(`/api/projects/${id}/pay-apps`, { method: "POST", body: JSON.stringify(body) }),
+  certifyPayApp: (appId: number, line_pcts: Record<number, number>, note: string) =>
+    req<PayAppItem>(`/api/pay-apps/${appId}/certify`, { method: "POST", body: JSON.stringify({ line_pcts, note }) }),
+  rejectPayApp: (appId: number, note: string) =>
+    req<PayAppItem>(`/api/pay-apps/${appId}/reject`, { method: "POST", body: JSON.stringify({ note }) }),
   // files
   upload: (id: number, file: File) => {
     const fd = new FormData();
@@ -466,4 +478,86 @@ export interface SubmittalItem {
 
 export function fileUrl(versionId: number): string {
   return `${API}/api/document-versions/${versionId}/file`;
+}
+
+export interface ContractItem {
+  id: number;
+  number: string;
+  title: string;
+  contractor_id: number | null;
+  retention_pct: number;
+  value: number;
+  lines: { id: number; code: string; description: string; value: number; milestone_id: number | null; activity_id: number | null }[];
+}
+
+export interface ChangeOrderItem {
+  id: number;
+  number: number;
+  title: string;
+  description: string;
+  reason: string;
+  stage: "pco" | "submitted" | "approved" | "rejected" | "void";
+  contract_id: number | null;
+  proposed_amount: number;
+  approved_amount: number | null;
+  recommended_amount: number | null;
+  assessment: string;
+  time_impact_days: number;
+  source_ref: string;
+}
+
+export interface PayAppItem {
+  id: number;
+  number: number;
+  contract_id: number;
+  period_end: string;
+  status: "submitted" | "certified" | "rejected" | "paid";
+  gross_to_date: number;
+  certified_to_date: number | null;
+  retention: number;
+  previous_certified: number;
+  amount_due: number;
+  notes: string;
+  lines: { contract_line_id: number; claimed_pct: number; certified_pct: number | null }[];
+}
+
+export interface OverbillItem {
+  pay_app_id: number;
+  pay_app_number: number;
+  contract_id: number;
+  line_id: number;
+  description: string;
+  claimed_pct: number;
+  recorded_pct: number;
+  excess_value: number;
+  ref: string;
+}
+
+export interface CashflowPoint {
+  month: string;
+  planned_cum: number;
+  actual_cum: number | null;
+  forecast_cum: number;
+}
+
+export interface Commercial {
+  currency: string;
+  summary: null | {
+    budget?: number;
+    contracts_original?: number;
+    approved_changes?: number;
+    committed?: number;
+    pending_exposure?: number;
+    uncommitted?: number;
+    forecast_final?: number;
+    variance?: number;
+    certified_to_date?: number;
+    retention_held?: number;
+    cashflow?: CashflowPoint[];
+    contracts: { id: number; title: string; revised: number; earned: number; claimed_to_date: number; certified_to_date: number; overbilled: number; retention_held: number }[];
+    overbilling: OverbillItem[];
+  };
+  contracts: ContractItem[];
+  change_orders: ChangeOrderItem[];
+  pay_apps: PayAppItem[];
 }

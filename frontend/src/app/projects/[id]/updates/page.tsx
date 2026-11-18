@@ -82,11 +82,11 @@ export default function DailyReportPage() {
     <main className="mx-auto max-w-xl px-5 py-8">
       <div className="flex items-center justify-between">
         {isContractor ? (
-          <span className="text-sm text-slate-500">
-            {me?.name || me?.email} · {ROLE_LABEL.contractor}
+          <span className="text-sm text-graphite/70">
+            {me?.name || me?.email}, {ROLE_LABEL.contractor.toLowerCase()}
           </span>
         ) : (
-          <Link href={`/projects/${pid}`} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+          <Link href={`/projects/${pid}`} className="flex items-center gap-1 text-sm text-graphite/70 hover:text-ink">
             <ArrowLeft size={14} /> Back to project
           </Link>
         )}
@@ -95,24 +95,24 @@ export default function DailyReportPage() {
             await api.logout();
             window.location.href = "/login";
           }}
-          className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
+          className="flex items-center gap-1 text-sm text-graphite/70 hover:text-ink"
         >
           <LogOut size={14} /> Sign out
         </button>
       </div>
       <h1 className="mt-4 text-xl font-semibold">Daily site report</h1>
-      <Link href={`/projects/${pid}/documents?tab=rfis`} className="mt-1 inline-block text-sm text-slate-600 underline">
+      <Link href={`/projects/${pid}/documents?tab=rfis`} className="mt-1 inline-block text-sm text-graphite/80 underline">
         Drawings, RFIs & submittals
       </Link>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-graphite/70">
         {isContractor ? `Reporting for ${contractors[0]?.name ?? "your company"}` : "Submit a report on a contractor's behalf"}
       </p>
 
-      <div className="mt-5 space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mt-5 space-y-4 rounded-md border border-rule bg-panel p-5">
         {!isContractor && (
           <label className="block">
             <span className="text-sm font-medium">Contractor</span>
-            <select value={cid ?? ""} onChange={(e) => setCid(Number(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+            <select value={cid ?? ""} onChange={(e) => setCid(Number(e.target.value))} className="mt-1 w-full rounded border border-rule px-3 py-2 text-sm">
               {contractors.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} — {c.trade}
@@ -124,7 +124,7 @@ export default function DailyReportPage() {
         )}
         <label className="block">
           <span className="text-sm font-medium">Report date</span>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full rounded border border-rule px-3 py-2 text-sm" />
         </label>
         <label className="block">
           <span className="text-sm font-medium">What happened today?</span>
@@ -133,26 +133,26 @@ export default function DailyReportPage() {
             onChange={(e) => setText(e.target.value)}
             rows={6}
             placeholder="Work done, % complete, manpower, materials received, issues or blockers…"
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-rule px-3 py-2 text-sm"
           />
         </label>
         <div>
           <span className="text-sm font-medium">Photos</span>
           <div className="mt-1 flex flex-wrap gap-2">
             {photos.map((p) => (
-              <div key={p.id} className="relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200">
+              <div key={p.id} className="relative h-20 w-20 overflow-hidden rounded border border-rule">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.preview} alt={p.filename} className="h-full w-full object-cover" />
                 <button
                   aria-label="Remove photo"
                   onClick={() => setPhotos((ps) => ps.filter((x) => x.id !== p.id))}
-                  className="absolute right-0.5 top-0.5 rounded-full bg-white/90 p-0.5"
+                  className="absolute right-0.5 top-0.5 rounded-full bg-panel/90 p-0.5"
                 >
                   <X size={12} />
                 </button>
               </div>
             ))}
-            <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 hover:bg-slate-50">
+            <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded border border-dashed border-rule text-xs text-graphite/70 hover:bg-concrete">
               <ImagePlus size={18} />
               {uploading ? "Uploading…" : "Add"}
               <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => addPhotos(e.target.files)} />
@@ -162,11 +162,11 @@ export default function DailyReportPage() {
         <button
           onClick={submit}
           disabled={busy || uploading || !text.trim()}
-          className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
         >
           <Send size={14} /> Submit report
         </button>
-        {status && <p className={`text-sm ${status.ok ? "text-emerald-700" : "text-red-600"}`}>{status.msg}</p>}
+        {status && <p className={`text-sm ${status.ok ? "text-site" : "text-brick"}`}>{status.msg}</p>}
       </div>
     </main>
   );

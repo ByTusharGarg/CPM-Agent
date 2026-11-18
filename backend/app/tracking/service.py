@@ -9,6 +9,11 @@ from sqlmodel import Session, select
 from ..db import today
 from ..models import (
     RFI,
+    ChangeOrder,
+    Contract,
+    ContractLine,
+    PayApplication,
+    PayAppLine,
     Activity,
     Submittal,
     Baseline,
@@ -46,6 +51,9 @@ def load_project_data(s: Session, project_id: int) -> dict[str, Any]:
         "baseline": current_baseline(s, project_id),
         "rfis": q(RFI),
         "submittals": q(Submittal),
+        "contracts": q(Contract),
+        "change_orders": q(ChangeOrder),
+        "pay_apps": q(PayApplication),
     }
 
 
@@ -61,7 +69,7 @@ def project_health(
     activity_overrides: dict | None = None,
 ) -> Health:
     d = load_project_data(s, project_id)
-    return compute_health(
+    h = compute_health(
         d["project"],
         d["milestones"],
         d["procurement"],
@@ -78,3 +86,20 @@ def project_health(
         rfis=d["rfis"],
         submittals=d["submittals"],
     )
+    if d["contracts"]:
+        from .commercial import commercial_summary
+
+        cids = [c.id for c in d["contracts"]]
+        lines = list(s.exec(select(ContractLine).where(ContractLine.contract_id.in_(cids))).all())
+        app_ids = [p.id for p in d["pay_apps"]]
+        pay_lines = list(s.exec(select(PayAppLine).where(PayAppLine.pay_app_id.in_(app_ids))).all()) if app_ids else []
+        h.commercial = commercial_summary(
+            d["project"], d["milestones"], d["activities"], d["contracts"], lines, d["change_orders"], d["pay_apps"],
+            pay_lines, d["costs"], h.milestones, h.as_of, {**(d["project"].thresholds or {})},
+        )
+        h.rule_hits.extend(h.commercial.rule_hits)
+        if any(x.severity == "critical" for x in h.rule_hits):
+            h.status = "red"
+        elif h.status == "green" and any(x.severity == "warning" for x in h.rule_hits):
+            h.status = "amber"
+    return h

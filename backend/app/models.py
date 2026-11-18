@@ -361,6 +361,90 @@ class DailyUpdate(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class Contract(SQLModel, table=True):
+    """A commitment with a contractor/supplier, broken into a schedule of values (ContractLine)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    contractor_id: Optional[int] = Field(default=None, foreign_key="contractor.id")
+    number: str = ""
+    title: str
+    retention_pct: float = 5.0
+    status: str = "active"  # draft | active | closed
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ContractLine(SQLModel, table=True):
+    """Schedule-of-values line. Progress comes from the linked activity or milestone."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    contract_id: int = Field(foreign_key="contract.id", index=True)
+    code: str = ""
+    description: str
+    value: float
+    milestone_id: Optional[int] = Field(default=None, foreign_key="milestone.id")
+    activity_id: Optional[int] = Field(default=None, foreign_key="activity.id")
+    sort_order: int = 0
+
+
+class ChangeOrder(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    contract_id: Optional[int] = Field(default=None, foreign_key="contract.id")
+    number: int = 0
+    title: str
+    description: str = ""
+    reason: str = "owner_request"  # owner_request | design_change | site_condition | error_omission | other
+    stage: str = "pco"  # pco (potential) | submitted | approved | rejected | void
+    proposed_amount: float = 0.0
+    approved_amount: Optional[float] = None
+    time_impact_days: int = 0
+    source_ref: str = ""  # e.g. rfi:1
+    assessment: str = ""  # commercial manager's note (agent or QS)
+    recommended_amount: Optional[float] = None
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    decided_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    decided_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class PayApplication(SQLModel, table=True):
+    """A contractor's progress claim for a period (running account bill)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    contract_id: int = Field(foreign_key="contract.id", index=True)
+    number: int = 0
+    period_end: date
+    status: str = "submitted"  # submitted | certified | rejected | paid
+    gross_to_date: float = 0.0       # claimed value of work done to date
+    certified_to_date: Optional[float] = None
+    retention: float = 0.0
+    previous_certified: float = 0.0
+    amount_due: float = 0.0          # this period, after retention
+    notes: str = ""
+    submitted_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    certified_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    certified_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class PayAppLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    pay_app_id: int = Field(foreign_key="payapplication.id", index=True)
+    contract_line_id: int = Field(foreign_key="contractline.id")
+    claimed_pct: float  # cumulative % complete claimed
+    certified_pct: Optional[float] = None
+
+
+class FundingSource(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    name: str  # e.g. "Equity", "Term loan - SBI"
+    amount: float
+    drawn: float = 0.0
+
+
 class CostEntry(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="project.id", index=True)

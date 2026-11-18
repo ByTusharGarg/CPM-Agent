@@ -51,7 +51,14 @@ PERMISSIONS: dict[str, set[str]] = {
     "rfi.create": {"owner", "owner_rep", "consultant", "contractor"},
     "rfi.answer": {"owner", "owner_rep", "consultant"},
     "submittal.submit": {"owner_rep", "contractor"},
-    "submittal.review": {"owner", "owner_rep", "consultant"},  # replaces the activity network and the current baseline
+    "submittal.review": {"owner", "owner_rep", "consultant"},
+    # phase 11 - commercial
+    "commercial.view": {"owner", "owner_rep", "consultant", "viewer", "contractor"},  # contractors: own contracts only
+    "contract.manage": {"owner", "owner_rep"},
+    "change_order.submit": {"owner", "owner_rep", "consultant", "contractor"},
+    "change_order.approve": {"owner"},
+    "payapp.submit": {"owner_rep", "contractor"},
+    "payapp.certify": {"owner", "consultant"},  # replaces the activity network and the current baseline
 }
 assert all(r in ROLES for roles in PERMISSIONS.values() for r in roles)
 

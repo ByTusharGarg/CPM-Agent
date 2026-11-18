@@ -49,9 +49,12 @@ DEFAULT_POLICIES: dict[str, str] = {
     "document.update": "auto",
     "document.issue": "approval",
     "rfi.update": "auto",
+    "change_order.assess": "auto",
+    "change_order.approve": "approval",
+    "payapp.certify": "approval",
     "budget.change": "approval",
 }
-LOCKED_APPROVAL = {"schedule.change", "schedule.rebaseline", "budget.change"}
+LOCKED_APPROVAL = {"schedule.change", "schedule.rebaseline", "budget.change", "change_order.approve", "payapp.certify"}
 
 
 @dataclass
@@ -397,6 +400,41 @@ def _rfi_update(s: Session, pid: int, p: dict[str, Any]) -> str:
         r.ball_in_court = p["ball_in_court"]
     s.add(r)
     return f"RFI #{r.number}: time_impact={r.time_impact} cost_impact={r.cost_impact} activity={r.activity_id}"
+
+
+@action("change_order.assess", "Record the commercial assessment of a change order",
+        lambda p: f"Assess change_order:{p['change_order_id']}" + (f" at {p['recommended_amount']:,.0f}" if p.get("recommended_amount") is not None else ""))
+def _co_assess(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..models import ChangeOrder
+
+    co = _get(s, ChangeOrder, p["change_order_id"], pid)
+    co.assessment = p["assessment"]
+    if p.get("recommended_amount") is not None:
+        co.recommended_amount = float(p["recommended_amount"])
+    if p.get("time_impact_days") is not None:
+        co.time_impact_days = int(p["time_impact_days"])
+    s.add(co)
+    return f"CO #{co.number} assessed"
+
+
+@action("change_order.approve", "Approve or reject a change order (owner approval required)",
+        lambda p: f"{'Approve' if p.get('approve', True) else 'Reject'} change_order:{p['change_order_id']}"
+                  + (f" at {float(p['amount']):,.0f}" if p.get("amount") is not None else ""))
+def _co_approve(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..commercial_services import decide_change_order_core
+
+    co = decide_change_order_core(s, p["change_order_id"], bool(p.get("approve", True)), p.get("amount"), p.get("note", ""), None)
+    return f"CO #{co.number} {co.stage}" + (f" at {co.approved_amount:,.0f}" if co.approved_amount is not None else "")
+
+
+@action("payapp.certify", "Certify a pay application, optionally at reduced %s (owner approval required)",
+        lambda p: f"Certify payapp:{p['pay_app_id']}" + (" with reductions" if p.get("line_pcts") else ""))
+def _payapp_certify(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..commercial_services import certify_core
+
+    pcts = {int(k): float(v) for k, v in (p.get("line_pcts") or {}).items()}
+    app = certify_core(s, p["pay_app_id"], pcts, p.get("note", ""), None)
+    return f"Pay app #{app.number} certified at {app.certified_to_date:,.0f}; payable {app.amount_due:,.0f}"
 
 
 @action("design.update", "Update a design deliverable's status/due date",

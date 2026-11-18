@@ -97,6 +97,30 @@ A project can be tracked by milestones only, or by an **activity network**: acti
   - Site Updates records progress on activities.
   - `schedule.rebaseline` (the current forecast becomes the new baseline) always needs the owner's approval.
 
+### Money: contracts, changes and payments (phase 11)
+**Money** shows the commercial position, all computed in `tracking/commercial.py`:
+- **Final cost:** forecast final cost = committed (contracts + approved changes) + changes still being decided + work not yet let, compared with the budget.
+- **Cash flow:** a cumulative S-curve of planned, actual and forecast spend, with a table view.
+- **Contract positions:** for each contract, its value including changes, work done on site, amount claimed, amount certified, and anything claimed ahead of site.
+
+**Change orders:** contractors and the owner's side raise them. The Commercial manager agent checks entitlement, values the change, runs the schedule simulation for any time impact, and records an assessment. Only the owner approves; an agent can only propose, which is locked to approval.
+
+**Pay applications:**
+- Contractors claim % complete per schedule-of-values line. The **overbilling check** compares each claim with progress recorded on site for the linked activity or milestone, and flags anything more than 5 percentage points ahead.
+- Certifiers (owner or consultant) can certify at lower percentages, never higher than claimed. Certification books the period's value as actual cost, so the cost performance index reflects it.
+- Agent-proposed certification always needs the owner's approval. The contractor is told the outcome on their phone.
+
+Contractors see only their own contracts, change orders and pay applications.
+
+### Visual design
+The UI is built around the **site board**, the statutory signboard at a construction gate. Each project header shows the planned and forecast completion dates large, on a blueprint-ink band. Everything else is deliberately quiet:
+- concrete and graphite surfaces, with hierarchy from type and rules rather than shadows and cards
+- Barlow and Barlow Condensed type (a grotesk drawn from road signage)
+- **hi-vis yellow reserved for "a decision waits for you"**
+- status shown in words, never by colour alone
+
+Tokens live in `frontend/src/app/globals.css`. The cash-flow chart uses a validated colour-blind-safe palette and direct labels.
+
 ### Documents, RFIs and submittals (phase 10)
 **Documents** opens a lean document register (common data environment):
 - **Upload:** name files like `A-101_R2 ground floor.pdf` and the number and revision are detected. A new revision supersedes the previous one.

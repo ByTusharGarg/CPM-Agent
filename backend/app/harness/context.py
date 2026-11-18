@@ -14,6 +14,10 @@ from sqlmodel import Session, SQLModel, col, select
 
 from ..models import (
     RFI,
+    ChangeOrder,
+    Contract,
+    ContractLine,
+    PayApplication,
     Activity,
     Document,
     Submittal,
@@ -44,6 +48,9 @@ KINDS: dict[str, type[SQLModel]] = {
     "document": Document,
     "rfi": RFI,
     "submittal": Submittal,
+    "contract": Contract,
+    "change_order": ChangeOrder,
+    "payapp": PayApplication,
     "design": DesignDeliverable,
     "contractor": Contractor,
     "update": DailyUpdate,
@@ -106,7 +113,17 @@ def _related(s: Session, kind: str, row: Any) -> list[str]:
     def refs(model, *conds, k: str):
         return [f"{k}:{r.id}" for r in s.exec(select(model).where(*conds)).all()]
 
-    if kind == "document":
+    if kind == "contract":
+        rel += [f"line:{ln.code or ln.id} {ln.description} = {ln.value:,.0f}" + (f" (activity:{ln.activity_id})" if ln.activity_id else f" (milestone:{ln.milestone_id})" if ln.milestone_id else "")
+                for ln in s.exec(select(ContractLine).where(ContractLine.contract_id == row.id)).all()]
+        rel += refs(ChangeOrder, ChangeOrder.contract_id == row.id, k="change_order")
+        rel += refs(PayApplication, PayApplication.contract_id == row.id, k="payapp")
+        rel.append(f"contractor:{row.contractor_id}" if row.contractor_id else "")
+    elif kind == "change_order":
+        rel += [f"contract:{row.contract_id}" if row.contract_id else "", row.source_ref or ""]
+    elif kind == "payapp":
+        rel.append(f"contract:{row.contract_id}")
+    elif kind == "document":
         from ..models import DocumentVersion
 
         rel += [f"version:{v.revision}" for v in s.exec(select(DocumentVersion).where(DocumentVersion.document_id == row.id)).all()]
@@ -208,6 +225,9 @@ def _brief(kind: str, r: Any) -> dict[str, Any]:
         "document": ["number", "title", "discipline", "doc_type", "status", "activity_id"],
         "rfi": ["number", "subject", "status", "due_date", "ball_in_court", "time_impact", "activity_id"],
         "submittal": ["number", "title", "status", "revision", "due_date", "required_by", "activity_id", "contractor_id"],
+        "contract": ["number", "title", "contractor_id", "retention_pct", "status"],
+        "change_order": ["number", "title", "stage", "proposed_amount", "approved_amount", "time_impact_days", "contract_id", "source_ref"],
+        "payapp": ["number", "contract_id", "period_end", "status", "gross_to_date", "certified_to_date", "amount_due"],
         "procurement": ["item", "vendor", "status", "required_on_site", "expected_delivery", "lead_time_days", "milestone_id"],
         "design": ["title", "discipline", "status", "due_date", "milestone_id"],
         "contractor": ["name", "trade", "allowlisted"],

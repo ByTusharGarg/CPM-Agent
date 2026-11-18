@@ -72,14 +72,19 @@ class Health:
     milestones: list[MilestoneForecast]
     rule_hits: list[RuleHit]
     schedule: Any = None  # CpmSchedule when the project has an activity network
+    commercial: Any = None  # CommercialSummary when the project has contracts
 
     def to_dict(self) -> dict[str, Any]:
-        sched = self.schedule
-        self.schedule = None  # the full network is served by /schedule, not the health payload
+        sched, com = self.schedule, self.commercial
+        self.schedule = self.commercial = None  # served by /schedule and /commercial, not the health payload
         try:
             d = asdict(self)
         finally:
-            self.schedule = sched
+            self.schedule, self.commercial = sched, com
+        if com is not None:
+            d["commercial_summary"] = {k: getattr(com, k) for k in (
+                "committed", "pending_exposure", "forecast_final", "variance", "certified_to_date")}
+            d["commercial_summary"]["overbilling_items"] = len(com.overbilling)
         if sched is not None:
             d["schedule_summary"] = {
                 "activities": len(sched.activities),

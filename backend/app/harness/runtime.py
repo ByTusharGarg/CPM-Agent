@@ -32,6 +32,19 @@ log = logging.getLogger(__name__)
 # no worker is subscribed to start a worker directly. The Router hears the
 # worker's result, never the raw (untrusted) contractor text.
 FAST_PATH_DISPATCH: dict[str, tuple[str, str, str]] = {
+    "change_order_submitted": (
+        "cost",
+        "Assess change order #{number}: {title}",
+        "A change order was raised (see <source_events>). Check entitlement (contract scope, RFI/design source), "
+        "estimate a fair value, run simulate_schedule for any time impact, and record_co_assessment. Do not approve it.",
+    ),
+    "payapp_submitted": (
+        "cost",
+        "Check pay application #{number}",
+        "A pay application was submitted (see <source_events>). Compare every claimed % with recorded site progress "
+        "(commercial_summary overbilling, get_schedule, recent daily updates and photos). If claims run ahead of progress, "
+        "propose certification at the supportable % with propose_certification and explain each reduction.",
+    ),
     "document_uploaded": (
         "document_controller",
         "Register {number} {title} ({revision})",

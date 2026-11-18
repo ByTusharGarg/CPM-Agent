@@ -172,7 +172,97 @@ def seed(eng=None) -> list[int]:
         ])
         s.flush()
         _seed_documents(s, p, design1, steel, facade, apex, cons)
+        _seed_commercial(s, p, civil, steel, mep)
     return ids
+
+
+def _seed_commercial(s, p, civil, steel, mep):
+    """Contracts (facade package not yet awarded), change orders, and pay applications -
+    including Apex's RA bill #2 that claims ahead of recorded site progress."""
+    from sqlmodel import select as _select
+
+    from .models import (
+        Activity,
+        ChangeOrder,
+        Contract,
+        ContractLine,
+        FundingSource,
+        Milestone,
+        PayApplication,
+        PayAppLine,
+    )
+
+    acts = {a.code: a for a in s.exec(_select(Activity).where(Activity.project_id == p.id)).all()}
+    ms = {m.name: m for m in s.exec(_select(Milestone).where(Milestone.project_id == p.id)).all()}
+
+    def contract(c, number, title, lines):
+        k = Contract(project_id=p.id, contractor_id=c.id, number=number, title=title, retention_pct=5.0)
+        s.add(k)
+        s.flush()
+        rows = []
+        for i, (code, desc, value, ref) in enumerate(lines):
+            ln = ContractLine(contract_id=k.id, code=code, description=desc, value=value, sort_order=i,
+                              activity_id=ref.id if isinstance(ref, Activity) else None,
+                              milestone_id=ref.id if isinstance(ref, Milestone) else None)
+            s.add(ln)
+            rows.append(ln)
+        s.flush()
+        return k, rows
+
+    civil_k, civil_l = contract(civil, "WO-CIV-01", "Civil, substructure and finishes", [
+        ("C1", "Mobilisation & excavation", 22_000_000, ms["Mobilisation & excavation"]),
+        ("C2", "Foundations & basement raft", 68_000_000, ms["Foundations & basement raft"]),
+        ("C3", "Finishes & fit-out", 72_000_000, ms["Finishes & fit-out"]),
+    ])
+    steel_k, steel_l = contract(steel, "WO-STL-01", "Structural steel supply and erection", [
+        ("S1", "Erect steel L1-L2", 30_000_000, acts["A5"]),
+        ("S2", "Erect steel L3-L4", 30_000_000, acts["A6"]),
+        ("S3", "Metal deck & slabs L1-L4", 12_000_000, acts["A7"]),
+        ("S4", "Erect steel L5-L8", 50_000_000, acts["A8"]),
+        ("S5", "Metal deck & slabs L5-L8", 20_000_000, acts["A9"]),
+    ])
+    contract(mep, "WO-MEP-01", "MEP services and commissioning", [
+        ("M1", "MEP rough-in", 86_000_000, ms["MEP rough-in"]),
+        ("M2", "Testing, commissioning & handover", 26_000_000, ms["Testing, commissioning & handover"]),
+    ])
+    # The unitised facade package (64M budget) is not awarded yet -> shows as uncommitted.
+
+    s.add_all([
+        ChangeOrder(project_id=p.id, contract_id=civil_k.id, number=1, title="Dewatering - high water table", reason="site_condition",
+                    stage="approved", proposed_amount=2_900_000, approved_amount=2_600_000, time_impact_days=0,
+                    assessment="Ground water 2.1 m above the GI report level; entitlement accepted, rates agreed at 2.6M.",
+                    decided_at=utcnow() - timedelta(days=90)),
+        ChangeOrder(project_id=p.id, contract_id=steel_k.id, number=2, title="Shop-welded facade embed plates on L3-L8 perimeter beams",
+                    reason="design_change", stage="pco", proposed_amount=1_800_000, time_impact_days=0, source_ref="rfi:1",
+                    description="F-201 R1 added weld-on embed plates at every facade bracket; not on the steel IFC drawings."),
+        ChangeOrder(project_id=p.id, contract_id=steel_k.id, number=3, title="Crane and crew standby awaiting batch 2 steel",
+                    reason="other", stage="submitted", proposed_amount=4_500_000, time_impact_days=12,
+                    description="Apex claims 12 days standby of the 110 t crawler crane and an erection crew of 14."),
+    ])
+
+    civil_pa = PayApplication(project_id=p.id, contract_id=civil_k.id, number=1, period_end=d(-50), status="certified",
+                              gross_to_date=90_000_000, certified_to_date=90_000_000, retention=4_500_000,
+                              amount_due=85_500_000, certified_at=utcnow() - timedelta(days=45))
+    steel_pa1 = PayApplication(project_id=p.id, contract_id=steel_k.id, number=1, period_end=d(-20), status="certified",
+                               gross_to_date=12_000_000, certified_to_date=12_000_000, retention=600_000,
+                               amount_due=11_400_000, certified_at=utcnow() - timedelta(days=15))
+    steel_pa2 = PayApplication(project_id=p.id, contract_id=steel_k.id, number=2, period_end=d(-3), status="submitted",
+                               gross_to_date=30_000_000 * 0.85 + 30_000_000 * 0.15, previous_certified=12_000_000,
+                               notes="RA bill 2: erection L1-L2 and start of L3-L4.")
+    steel_pa2.retention = round(steel_pa2.gross_to_date * 0.05, 2)
+    steel_pa2.amount_due = round((steel_pa2.gross_to_date - 12_000_000) * 0.95, 2)
+    s.add_all([civil_pa, steel_pa1, steel_pa2])
+    s.flush()
+    s.add_all([
+        PayAppLine(pay_app_id=civil_pa.id, contract_line_id=civil_l[0].id, claimed_pct=100, certified_pct=100),
+        PayAppLine(pay_app_id=civil_pa.id, contract_line_id=civil_l[1].id, claimed_pct=100, certified_pct=100),
+        PayAppLine(pay_app_id=steel_pa1.id, contract_line_id=steel_l[0].id, claimed_pct=40, certified_pct=40),
+        # Recorded progress on "Erect steel L1-L2" is 60% and L3-L4 has not started: this bill runs ahead of site.
+        PayAppLine(pay_app_id=steel_pa2.id, contract_line_id=steel_l[0].id, claimed_pct=85),
+        PayAppLine(pay_app_id=steel_pa2.id, contract_line_id=steel_l[1].id, claimed_pct=15),
+    ])
+    s.add_all([FundingSource(project_id=p.id, name="Promoter equity", amount=180_000_000, drawn=150_000_000),
+               FundingSource(project_id=p.id, name="Construction term loan", amount=300_000_000, drawn=60_000_000)])
 
 
 SPEC_0844 = """SECTION 08 44 13 - GLAZED ALUMINIUM CURTAIN WALLS (UNITISED)

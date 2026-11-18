@@ -22,19 +22,19 @@ export function RightPanel({ state }: { state: ProjectState }) {
     { id: "team", label: "Team" },
   ];
   return (
-    <aside className="hidden w-[380px] shrink-0 flex-col border-l border-slate-200 bg-white lg:flex">
-      <div className="flex gap-1 border-b border-slate-200 px-2 pt-2">
+    <aside className="hidden w-[380px] shrink-0 flex-col border-l border-rule bg-panel lg:flex">
+      <div className="flex gap-1 border-b border-rule px-2 pt-2">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex items-center gap-1.5 rounded-t-md px-3 py-2 text-sm ${
-              tab === t.id ? "border-b-2 border-slate-900 font-semibold" : "text-slate-500 hover:text-slate-800"
+              tab === t.id ? "border-b-2 border-ink font-semibold" : "text-graphite/70 hover:text-ink"
             }`}
           >
             {t.label}
             {!!t.badge && (
-              <span className={`rounded-full px-1.5 text-[11px] font-semibold leading-5 ${t.id === "overview" ? "bg-red-500 text-white" : "bg-sky-100 text-sky-700"}`}>
+              <span className={`rounded-full px-1.5 text-[11px] font-semibold leading-5 ${t.id === "overview" ? "bg-brick text-white" : "bg-ink/5 text-ink-soft"}`}>
                 {t.badge}
               </span>
             )}
@@ -53,12 +53,12 @@ export function RightPanel({ state }: { state: ProjectState }) {
 }
 
 function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "bad" | "good" | "warn" }) {
-  const c = tone === "bad" ? "text-red-600" : tone === "warn" ? "text-amber-600" : tone === "good" ? "text-emerald-600" : "text-slate-900";
+  const c = tone === "bad" ? "text-brick" : tone === "warn" ? "text-[#7a5a00]" : tone === "good" ? "text-site" : "text-ink";
   return (
-    <div className="rounded-lg border border-slate-200 px-3 py-2">
-      <div className="text-[11px] text-slate-500">{label}</div>
+    <div className="rounded border border-rule px-3 py-2">
+      <div className="text-[11px] text-graphite/70">{label}</div>
       <div className={`text-lg font-semibold tabular-nums ${c}`}>{value}</div>
-      {sub && <div className="text-[11px] text-slate-500">{sub}</div>}
+      {sub && <div className="text-[11px] text-graphite/70">{sub}</div>}
     </div>
   );
 }
@@ -82,15 +82,15 @@ function Overview({ state }: { state: ProjectState }) {
     }
   }
 
-  if (!h) return <p className="p-4 text-sm text-slate-500">Loading…</p>;
+  if (!h) return <p className="p-4 text-sm text-graphite/70">Loading…</p>;
   const spiTone = h.spi == null ? undefined : h.spi < 0.9 ? "bad" : h.spi < 0.97 ? "warn" : "good";
   const cpiTone = h.cpi == null ? undefined : h.cpi < 0.95 ? "bad" : h.cpi < 1 ? "warn" : "good";
   return (
     <>
       <Section
-        title={`Health · as of ${fmtDate(h.as_of)}`}
+        title={`Health on ${fmtDate(h.as_of)}`}
         right={
-          state.can("health.check") && <button onClick={check} disabled={checking} className="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900">
+          state.can("health.check") && <button onClick={check} disabled={checking} className="flex items-center gap-1 text-xs font-medium text-graphite/80 hover:text-ink">
             <RefreshCw size={12} className={checking ? "animate-spin" : ""} /> Run check
           </button>
         }
@@ -103,34 +103,34 @@ function Overview({ state }: { state: ProjectState }) {
           <Kpi label="Spent to date" value={money(h.actual_cost, cur)} sub={`of ${money(h.budget, cur)}`} />
           <Kpi label="Forecast at completion" value={money(h.eac, cur)} sub={`${h.cost_variance_pct > 0 ? "+" : ""}${h.cost_variance_pct.toFixed(1)}% vs budget`} tone={h.cost_variance_pct > 5 ? "bad" : h.cost_variance_pct > 0 ? "warn" : "good"} />
         </div>
-        {note && <p className="mt-2 text-xs text-slate-500">{note}</p>}
+        {note && <p className="mt-2 text-xs text-graphite/70">{note}</p>}
       </Section>
 
       <Section title="Needs you">
         {state.needs.alerts.length + state.needs.approvals.length === 0 ? (
-          <p className="text-sm text-slate-500">Nothing needs your attention right now.</p>
+          <p className="text-sm text-graphite/70">Nothing needs your attention right now.</p>
         ) : (
           <ul className="space-y-2">
             {state.needs.alerts.map((a) => (
-              <li key={`a${a.id}`} className="rounded-lg border border-slate-200 px-3 py-2">
+              <li key={`a${a.id}`} className="rounded border border-rule px-3 py-2">
                 <div className="flex items-center gap-2">
                   <SeverityBadge severity={a.severity} />
                   <span className="truncate text-sm font-medium">{a.title}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-500">Decision card in chat · {a.options.length} options</p>
+                <p className="mt-0.5 text-xs text-graphite/70">{a.options.length} options in the chat</p>
               </li>
             ))}
             {state.needs.approvals.map((x) => (
-              <li key={`x${x.id}`} className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2">
+              <li key={`x${x.id}`} className="rounded border border-hivis bg-hivis-soft px-3 py-2">
                 <div className="text-sm font-medium">Approve: {x.summary}</div>
                 {!state.can(x.locked ? "action.approve_locked" : "action.approve") ? (
-                  <p className="mt-0.5 text-xs text-slate-500">Waiting for {x.locked ? "the owner" : "the owner or owner's rep"}</p>
+                  <p className="mt-0.5 text-xs text-graphite/70">Waiting for {x.locked ? "the owner" : "the owner or owner's rep"}</p>
                 ) : (
                 <div className="mt-1 flex gap-2">
-                  <button onClick={async () => { await api.decideAction(x.id, true); state.refreshNeeds(); }} className="rounded bg-slate-900 px-2 py-0.5 text-xs text-white">
+                  <button onClick={async () => { await api.decideAction(x.id, true); state.refreshNeeds(); }} className="rounded bg-ink px-2 py-0.5 text-xs text-white">
                     Approve
                   </button>
-                  <button onClick={async () => { await api.decideAction(x.id, false); state.refreshNeeds(); }} className="rounded border border-slate-300 bg-white px-2 py-0.5 text-xs">
+                  <button onClick={async () => { await api.decideAction(x.id, false); state.refreshNeeds(); }} className="rounded border border-rule bg-panel px-2 py-0.5 text-xs">
                     Reject
                   </button>
                 </div>
@@ -150,7 +150,7 @@ function Overview({ state }: { state: ProjectState }) {
           {h.rule_hits.map((r) => (
             <li key={r.rule_key} className="flex items-start gap-2 text-sm">
               <SeverityBadge severity={r.severity} />
-              <span className="text-slate-700">{r.title}</span>
+              <span className="text-graphite">{r.title}</span>
             </li>
           ))}
         </ul>
@@ -160,7 +160,7 @@ function Overview({ state }: { state: ProjectState }) {
 }
 
 function Timeline({ items, start }: { items: MilestoneForecast[]; start?: string }) {
-  if (!items.length) return <p className="text-sm text-slate-500">No milestones.</p>;
+  if (!items.length) return <p className="text-sm text-graphite/70">No milestones.</p>;
   const t = (s: string) => new Date(`${s}T00:00:00`).getTime();
   const min = Math.min(...items.map((m) => t(m.planned_start)), start ? t(start) : Infinity);
   const max = Math.max(...items.map((m) => Math.max(t(m.planned_end), t(m.forecast_end))));
@@ -174,27 +174,27 @@ function Timeline({ items, start }: { items: MilestoneForecast[]; start?: string
         return (
           <div key={m.id}>
             <div className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="truncate font-medium text-slate-700">{m.name}</span>
-              <span className={`shrink-0 tabular-nums ${m.status === "done" ? "text-slate-400" : m.slip_days > 0 ? "text-red-600" : "text-emerald-600"}`}>
+              <span className="truncate font-medium text-graphite">{m.name}</span>
+              <span className={`shrink-0 tabular-nums ${m.status === "done" ? "text-graphite/50" : m.slip_days > 0 ? "text-brick" : "text-site"}`}>
                 {m.status === "done" ? "done" : m.slip_days > 0 ? `+${m.slip_days}d` : "on time"}
               </span>
             </div>
-            <div className="relative mt-1 h-3 rounded bg-slate-100">
-              <div className="absolute top-0 h-1.5 rounded-sm bg-slate-300" style={{ left: `${ps}%`, width: `${Math.max(pe - ps, 0.8)}%` }} title={`Planned ${m.planned_start} → ${m.planned_end}`} />
+            <div className="relative mt-1 h-3 rounded bg-concrete">
+              <div className="absolute top-0 h-1.5 rounded-sm bg-rule" style={{ left: `${ps}%`, width: `${Math.max(pe - ps, 0.8)}%` }} title={`Planned ${m.planned_start} → ${m.planned_end}`} />
               <div
-                className={`absolute bottom-0 h-1.5 rounded-sm ${m.status === "done" ? "bg-slate-400" : m.slip_days > 0 ? "bg-red-400" : "bg-emerald-400"}`}
+                className={`absolute bottom-0 h-1.5 rounded-sm ${m.status === "done" ? "bg-rule" : m.slip_days > 0 ? "bg-brick" : "bg-site"}`}
                 style={{ left: `${fs}%`, width: `${Math.max(fe - fs, 0.8)}%` }}
                 title={`Forecast ${m.forecast_start} → ${m.forecast_end} · ${m.actual_pct}% done`}
               />
-              {today > min && today < max && <div className="absolute -top-0.5 h-4 w-px bg-slate-900/60" style={{ left: `${pct(today)}%` }} />}
+              {today > min && today < max && <div className="absolute -top-0.5 h-4 w-px bg-ink/60" style={{ left: `${pct(today)}%` }} />}
             </div>
           </div>
         );
       })}
-      <div className="flex gap-3 pt-1 text-[11px] text-slate-500">
-        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-sm bg-slate-300" /> planned</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-sm bg-red-400" /> forecast (late)</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-px bg-slate-900/60" /> today</span>
+      <div className="flex gap-3 pt-1 text-[11px] text-graphite/70">
+        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-sm bg-rule" /> planned</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 rounded-sm bg-brick" /> forecast (late)</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-px bg-ink/60" /> today</span>
       </div>
     </div>
   );
@@ -205,14 +205,14 @@ function Agents({ state }: { state: ProjectState }) {
   return (
     <>
       <Section title="Live activity">
-        {state.routerBusy && <p className="mb-1 text-sm text-sky-700">Project manager is working…</p>}
+        {state.routerBusy && <p className="mb-1 text-sm text-ink-soft">Project manager is working…</p>}
         {state.activity.length === 0 && !state.routerBusy ? (
-          <p className="text-sm text-slate-500">Idle. Agents wake up on your messages, contractor updates and the daily check.</p>
+          <p className="text-sm text-graphite/70">Idle. Agents wake up on your messages, contractor updates and the daily check.</p>
         ) : (
           <ul className="space-y-1">
             {state.activity.slice().reverse().map((a) => (
-              <li key={a.key} className="flex items-center gap-1.5 text-xs text-slate-600">
-                <Activity size={12} className="text-sky-600" /> <b className="font-medium">{a.actor}</b> {a.tool}
+              <li key={a.key} className="flex items-center gap-1.5 text-xs text-graphite/80">
+                <Activity size={12} className="text-ink-soft" /> <b className="font-medium">{a.actor}</b> {a.tool}
               </li>
             ))}
           </ul>
@@ -220,28 +220,28 @@ function Agents({ state }: { state: ProjectState }) {
       </Section>
       <Section title="Work items">
         {state.work.length === 0 ? (
-          <p className="text-sm text-slate-500">No work dispatched yet.</p>
+          <p className="text-sm text-graphite/70">No work dispatched yet.</p>
         ) : (
           <ul className="space-y-1.5">
             {state.work.map((w) => (
-              <li key={w.id} className="rounded-lg border border-slate-200">
+              <li key={w.id} className="rounded border border-rule">
                 <button onClick={() => setOpen(open === w.id ? null : w.id)} className="flex w-full items-center gap-2 px-3 py-2 text-left">
                   {open === w.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{w.title}</div>
-                    <div className="text-[11px] text-slate-500">
-                      {WORKER_LABEL[w.worker] ?? w.worker} · {w.turns_used} turns · {timeAgo(w.updated_at)}
+                    <div className="text-[11px] text-graphite/70">
+                      {WORKER_LABEL[w.worker] ?? w.worker}, {w.turns_used} steps, {timeAgo(w.updated_at)}
                     </div>
                   </div>
                   <StatusPill status={w.status} />
                 </button>
                 {open === w.id && (
-                  <div className="border-t border-slate-100 px-3 py-2">
-                    {w.result ? <Markdown>{w.result}</Markdown> : <p className="text-xs text-slate-500">No report yet.</p>}
+                  <div className="border-t border-rule px-3 py-2">
+                    {w.result ? <Markdown>{w.result}</Markdown> : <p className="text-xs text-graphite/70">No report yet.</p>}
                     {(w.status === "running" || w.status === "queued") && state.can("work.cancel") && (
                       <button
                         onClick={async () => { await api.cancelWork(w.id); state.refreshWork(); }}
-                        className="mt-2 flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-xs"
+                        className="mt-2 flex items-center gap-1 rounded border border-rule px-2 py-1 text-xs"
                       >
                         <Square size={10} /> Stop
                       </button>
@@ -265,27 +265,27 @@ function Autonomy({ state }: { state: ProjectState }) {
   return (
     <>
       <Section title="What agents may do on their own">
-        <p className="mb-2 text-xs text-slate-500">
-          <b>auto</b> = do it · <b>observe</b> = only log what it would do · <b>off</b> = never. Baseline schedule and budget changes always need your approval.
+        <p className="mb-2 text-xs text-graphite/70">
+          <b>Auto</b> means the agent does it, <b>observe</b> means it only logs what it would have done, <b>off</b> means never. Baseline schedule and budget changes always need your approval.
         </p>
         <ul className="space-y-1.5">
           {state.policies.map((p) => (
             <li key={p.action} className="flex items-center gap-2">
               <div className="min-w-0 flex-1">
-                <div className="font-mono text-xs">{p.action}</div>
-                <div className="truncate text-[11px] text-slate-500">{p.description}</div>
+                <div className="font-display text-xs">{p.action}</div>
+                <div className="truncate text-[11px] text-graphite/70">{p.description}</div>
               </div>
               {p.locked ? (
-                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">approval</span>
+                <span className="rounded bg-hivis-soft px-1.5 py-0.5 text-[11px] font-medium text-[#7a5a00]">approval</span>
               ) : !state.can("policy.edit") ? (
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">{p.mode}</span>
+                <span className="rounded bg-concrete px-1.5 py-0.5 text-[11px] font-medium text-graphite/80">{p.mode}</span>
               ) : (
-                <div className="flex overflow-hidden rounded-md border border-slate-200">
+                <div className="flex overflow-hidden rounded-md border border-rule">
                   {MODES.map((m) => (
                     <button
                       key={m}
                       onClick={async () => { if (pid) { await api.setPolicy(pid, p.action, m); state.refreshObserved(); } }}
-                      className={`px-1.5 py-0.5 text-[11px] ${p.mode === m ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                      className={`px-1.5 py-0.5 text-[11px] ${p.mode === m ? "bg-ink text-white" : "bg-panel text-graphite/80 hover:bg-concrete"}`}
                     >
                       {m}
                     </button>
@@ -298,14 +298,14 @@ function Autonomy({ state }: { state: ProjectState }) {
       </Section>
       <Section title={`Observe log (${observed.length})`}>
         {observed.length === 0 ? (
-          <p className="text-sm text-slate-500">Nothing logged in observe mode yet.</p>
+          <p className="text-sm text-graphite/70">Nothing logged in observe mode yet.</p>
         ) : (
           <ul className="space-y-1.5">
             {observed.map((a) => (
-              <li key={a.id} className="rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-2 text-sm">
+              <li key={a.id} className="rounded border border-rule bg-concrete/60 px-3 py-2 text-sm">
                 <div className="font-medium">Would have: {a.summary}</div>
-                <div className="text-[11px] text-slate-500">
-                  {a.actor} · {timeAgo(a.created_at)} {a.reason && `· ${a.reason}`}
+                <div className="text-[11px] text-graphite/70">
+                  {a.actor}, {timeAgo(a.created_at)}{a.reason && `: ${a.reason}`}
                 </div>
               </li>
             ))}
@@ -317,7 +317,7 @@ function Autonomy({ state }: { state: ProjectState }) {
           {state.observed.slice(0, 25).map((a) => (
             <li key={a.id} className="flex items-center gap-2 text-xs">
               <StatusPill status={a.status} />
-              <span className="truncate text-slate-700">{a.summary}</span>
+              <span className="truncate text-graphite">{a.summary}</span>
             </li>
           ))}
         </ul>
@@ -338,22 +338,22 @@ function Reports({ state }: { state: ProjectState }) {
             await api.requestReport(state.project.id);
             setMsg("Requested - the reporter agent is writing it.");
           }}
-          className="text-xs font-medium text-slate-600 hover:text-slate-900"
+          className="text-xs font-medium text-graphite/80 hover:text-ink"
         >
           Generate now
         </button>
       }
     >
-      {msg && <p className="mb-2 text-xs text-slate-500">{msg}</p>}
+      {msg && <p className="mb-2 text-xs text-graphite/70">{msg}</p>}
       {state.reports.length === 0 ? (
-        <p className="text-sm text-slate-500">Weekly reports appear here (Mondays by default).</p>
+        <p className="text-sm text-graphite/70">Weekly reports appear here (Mondays by default).</p>
       ) : (
         <ul className="space-y-1.5">
           {state.reports.map((r) => (
             <li key={r.id}>
-              <Link href={`/reports/${r.id}`} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50">
+              <Link href={`/reports/${r.id}`} className="flex items-center gap-2 rounded border border-rule px-3 py-2 text-sm hover:bg-concrete">
                 <FileText size={14} /> <span className="flex-1 font-medium">{r.period}</span>
-                <span className="text-xs text-slate-500">{timeAgo(r.created_at)}</span>
+                <span className="text-xs text-graphite/70">{timeAgo(r.created_at)}</span>
               </Link>
             </li>
           ))}
@@ -374,7 +374,6 @@ function Team({ state }: { state: ProjectState }) {
   const load = () => {
     if (pid) api.members(pid).then(setMembers).catch((e) => setMsg(errMsg(e)));
   };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [pid]);
 
   async function add() {
@@ -403,7 +402,7 @@ function Team({ state }: { state: ProjectState }) {
   }
 
   const contractorName = (id: number | null) => state.project?.contractors.find((c) => c.id === id)?.name;
-  const input = "w-full rounded-md border border-slate-200 px-2 py-1 text-sm";
+  const input = "w-full rounded-md border border-rule px-2 py-1 text-sm";
   return (
     <>
       <Section title={`Members (${members.length})`}>
@@ -412,21 +411,21 @@ function Team({ state }: { state: ProjectState }) {
             <li key={m.id} className="flex items-center gap-2 text-sm">
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{m.name || m.email}</div>
-                <div className="truncate text-[11px] text-slate-500">
+                <div className="truncate text-[11px] text-graphite/70">
                   {m.email}
-                  {m.contractor_id ? ` · ${contractorName(m.contractor_id) ?? "contractor"}` : ""}
+                  {m.contractor_id ? `, ${contractorName(m.contractor_id) ?? "contractor"}` : ""}
                 </div>
               </div>
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">{ROLE_LABEL[m.role]}</span>
+              <span className="rounded bg-concrete px-1.5 py-0.5 text-[11px] font-medium text-graphite">{ROLE_LABEL[m.role]}</span>
               {canManage && (
-                <button aria-label="Remove member" onClick={() => remove(m.id)} className="text-slate-400 hover:text-red-600">
+                <button aria-label="Remove member" onClick={() => remove(m.id)} className="text-graphite/50 hover:text-brick">
                   <Trash2 size={13} />
                 </button>
               )}
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-[11px] text-slate-500">Organization admins have owner access to every project.</p>
+        <p className="mt-2 text-[11px] text-graphite/70">Organization admins have owner access to every project.</p>
       </Section>
       {canManage && (
         <Section title="Add member">
@@ -451,11 +450,11 @@ function Team({ state }: { state: ProjectState }) {
                 </select>
               )}
             </div>
-            <button onClick={add} disabled={!form.email} className="flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">
+            <button onClick={add} disabled={!form.email} className="flex items-center gap-1 rounded bg-ink px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">
               <UserPlus size={14} /> Add
             </button>
-            {msg && <p className="text-xs text-red-600">{msg}</p>}
-            <p className="text-[11px] text-slate-500">They sign in with a one-time code sent to this email.</p>
+            {msg && <p className="text-xs text-brick">{msg}</p>}
+            <p className="text-[11px] text-graphite/70">They sign in with a one-time code sent to this email.</p>
           </div>
         </Section>
       )}
