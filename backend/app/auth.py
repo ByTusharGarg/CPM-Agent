@@ -43,7 +43,7 @@ PERMISSIONS: dict[str, set[str]] = {
     "report.view": {"owner", "owner_rep", "consultant", "viewer"},
     "update.submit": {"owner", "owner_rep", "contractor"},
     "contractors.view": {"owner", "owner_rep", "consultant", "contractor"},
-    "schedule.import": {"owner"},
+    "schedule.import": {"owner"},  # replaces the activity network and the current baseline
     # phase 10 - documents, RFIs, submittals
     "document.view": {"owner", "owner_rep", "consultant", "viewer", "contractor"},  # contractors: issued docs + their own
     "document.upload": {"owner", "owner_rep", "consultant", "contractor"},
@@ -58,7 +58,7 @@ PERMISSIONS: dict[str, set[str]] = {
     "change_order.submit": {"owner", "owner_rep", "consultant", "contractor"},
     "change_order.approve": {"owner"},
     "payapp.submit": {"owner_rep", "contractor"},
-    "payapp.certify": {"owner", "consultant"},  # replaces the activity network and the current baseline
+    "payapp.certify": {"owner", "consultant"},
 }
 assert all(r in ROLES for roles in PERMISSIONS.values() for r in roles)
 

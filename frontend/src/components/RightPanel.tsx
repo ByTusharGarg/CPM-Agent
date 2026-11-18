@@ -367,6 +367,34 @@ function Reports({ state }: { state: ProjectState }) {
 
 const ROLES: Role[] = ["owner", "owner_rep", "consultant", "contractor", "viewer"];
 
+// Mirrors backend/app/auth.py PERMISSIONS - keep the two in step.
+const ROLE_ACCESS: Record<Role, { summary: string; can: string; cannot?: string }> = {
+  owner: {
+    summary: "Full control of the project.",
+    can: "Talk to the project manager, decide alerts, approve anything the agents propose, including baseline schedule and budget changes, change orders and payments. Set what agents may do on their own, manage the team and import schedules.",
+  },
+  owner_rep: {
+    summary: "Runs the project day to day for the owner.",
+    can: "Talk to the project manager, decide alerts, approve routine agent actions, run health checks, set up contracts, issue documents, answer RFIs, review submittals and submit pay applications on a contractor's behalf.",
+    cannot: "Approve baseline schedule or budget changes, approve change orders, certify payments, change agent rules or manage the team.",
+  },
+  consultant: {
+    summary: "Design or cost consultant with full visibility and review duties.",
+    can: "See everything on the project, run health checks, request reports, upload and issue documents, answer RFIs, review submittals, certify pay applications and raise change orders.",
+    cannot: "Message the project manager or decide alerts.",
+  },
+  contractor: {
+    summary: "Sees and does only their own company's work.",
+    can: "Send daily reports with photos (web or WhatsApp), raise RFIs, and submit submittals, change orders and pay applications on their own contract. Sees drawings issued for construction and their own items.",
+    cannot: "See the chat, the budget, other contractors or anything not issued to them.",
+  },
+  viewer: {
+    summary: "Read-only access, for board members or lenders.",
+    can: "See progress, schedule, documents, money and the conversation with the project manager.",
+    cannot: "Change, approve or send anything.",
+  },
+};
+
 function Team({ state }: { state: ProjectState }) {
   const pid = state.project?.id;
   const canManage = state.can("members.manage");
@@ -452,6 +480,25 @@ function Team({ state }: { state: ProjectState }) {
                 </select>
               )}
             </div>
+            <div className="rounded border border-rule bg-concrete/50 px-3 py-2 text-[13px] leading-snug">
+              <div className="font-semibold text-ink">{ROLE_LABEL[form.role]}: {ROLE_ACCESS[form.role].summary}</div>
+              <p className="mt-1 text-graphite"><span className="font-medium">Can</span> {ROLE_ACCESS[form.role].can.charAt(0).toLowerCase() + ROLE_ACCESS[form.role].can.slice(1)}</p>
+              {ROLE_ACCESS[form.role].cannot && (
+                <p className="mt-1 text-graphite/80"><span className="font-medium">Cannot</span> {ROLE_ACCESS[form.role].cannot!.charAt(0).toLowerCase() + ROLE_ACCESS[form.role].cannot!.slice(1)}</p>
+              )}
+              {form.role === "contractor" && <p className="mt-1 text-graphite/70">Pick their company so they only see that contract.</p>}
+            </div>
+            <details className="text-[13px]">
+              <summary className="cursor-pointer text-ink underline underline-offset-2">Compare all roles</summary>
+              <dl className="mt-2 space-y-2">
+                {ROLES.map((r) => (
+                  <div key={r}>
+                    <dt className="font-semibold text-ink">{ROLE_LABEL[r]}</dt>
+                    <dd className="text-graphite/85">{ROLE_ACCESS[r].summary} {ROLE_ACCESS[r].cannot ? `Cannot ${ROLE_ACCESS[r].cannot!.charAt(0).toLowerCase()}${ROLE_ACCESS[r].cannot!.slice(1)}` : ""}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
             <button onClick={add} disabled={!form.email} className="flex items-center gap-1 rounded bg-ink px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40">
               <UserPlus size={14} /> Add
             </button>
