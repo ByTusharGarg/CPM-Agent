@@ -43,7 +43,22 @@ PERMISSIONS: dict[str, set[str]] = {
     "report.view": {"owner", "owner_rep", "consultant", "viewer"},
     "update.submit": {"owner", "owner_rep", "contractor"},
     "contractors.view": {"owner", "owner_rep", "consultant", "contractor"},
-    "schedule.import": {"owner"},  # replaces the activity network and the current baseline
+    "schedule.import": {"owner"},
+    # phase 10 - documents, RFIs, submittals
+    "document.view": {"owner", "owner_rep", "consultant", "viewer", "contractor"},  # contractors: issued docs + their own
+    "document.upload": {"owner", "owner_rep", "consultant", "contractor"},
+    "document.manage": {"owner", "owner_rep", "consultant"},  # status / metadata / issue for construction
+    "rfi.create": {"owner", "owner_rep", "consultant", "contractor"},
+    "rfi.answer": {"owner", "owner_rep", "consultant"},
+    "submittal.submit": {"owner_rep", "contractor"},
+    "submittal.review": {"owner", "owner_rep", "consultant"},
+    # phase 11 - commercial
+    "commercial.view": {"owner", "owner_rep", "consultant", "viewer", "contractor"},  # contractors: own contracts only
+    "contract.manage": {"owner", "owner_rep"},
+    "change_order.submit": {"owner", "owner_rep", "consultant", "contractor"},
+    "change_order.approve": {"owner"},
+    "payapp.submit": {"owner_rep", "contractor"},
+    "payapp.certify": {"owner", "consultant"},  # replaces the activity network and the current baseline
 }
 assert all(r in ROLES for roles in PERMISSIONS.values() for r in roles)
 

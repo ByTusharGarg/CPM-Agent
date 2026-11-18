@@ -1,8 +1,24 @@
 @import "tailwindcss";
 
+/*
+  Site Manager tokens.
+  Concrete and graphite surfaces, blueprint ink for headings and primary actions,
+  hi-vis yellow reserved for "needs your decision", brick and site green for status.
+*/
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-barlow), system-ui, sans-serif;
+  --font-display: var(--font-barlow-condensed), var(--font-barlow), system-ui, sans-serif;
+
+  --color-concrete: #e7e9e4; /* app ground */
+  --color-panel: #f7f8f6;    /* reading surfaces */
+  --color-rule: #c8cdc6;     /* hairlines */
+  --color-ink: #16324f;      /* blueprint ink: headings, primary actions, the site board */
+  --color-ink-soft: #2c4a6b;
+  --color-graphite: #2a3036; /* body text */
+  --color-hivis: #f2b705;    /* attention: a decision waits for you */
+  --color-hivis-soft: #fdf3cf;
+  --color-brick: #b3261e;    /* critical / late */
+  --color-site: #2e7d5b;     /* on track */
 }
 
 :root {
@@ -15,29 +31,57 @@ body {
 }
 
 body {
-  background: #f6f7f9;
-  color: #0f172a;
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--color-concrete);
+  color: var(--color-graphite);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  font-feature-settings: "tnum" 1; /* tabular figures: dates and money line up */
+}
+
+/* In the base layer so utility classes (e.g. text-white on the site board) win. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    letter-spacing: 0.005em;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* markdown inside chat bubbles / reports */
 .md p { margin: 0.35rem 0; }
 .md ul { list-style: disc; padding-left: 1.25rem; margin: 0.35rem 0; }
 .md ol { list-style: decimal; padding-left: 1.25rem; margin: 0.35rem 0; }
-.md h1 { font-size: 1.35rem; font-weight: 650; margin: 0.9rem 0 0.4rem; }
-.md h2 { font-size: 1.12rem; font-weight: 650; margin: 0.8rem 0 0.35rem; }
-.md h3 { font-size: 1rem; font-weight: 600; margin: 0.6rem 0 0.3rem; }
-.md table { border-collapse: collapse; margin: 0.5rem 0; font-size: 0.85rem; }
-.md th, .md td { border: 1px solid #e2e8f0; padding: 0.3rem 0.55rem; text-align: left; }
-.md th { background: #f1f5f9; font-weight: 600; }
-.md code { font-family: var(--font-geist-mono); font-size: 0.85em; background: #f1f5f9; padding: 0.05rem 0.3rem; border-radius: 4px; }
-.md pre { background: #0f172a; color: #e2e8f0; padding: 0.75rem; border-radius: 8px; overflow-x: auto; }
+.md h1 { font-size: 1.45rem; font-weight: 700; margin: 0.9rem 0 0.4rem; }
+.md h2 { font-size: 1.2rem; font-weight: 600; margin: 0.8rem 0 0.35rem; }
+.md h3 { font-size: 1.05rem; font-weight: 600; margin: 0.6rem 0 0.3rem; }
+.md table { border-collapse: collapse; margin: 0.5rem 0; font-size: 0.9rem; }
+.md th, .md td { border-bottom: 1px solid var(--color-rule); padding: 0.3rem 0.6rem; text-align: left; }
+.md th { font-weight: 600; color: var(--color-ink); }
+.md code { font-size: 0.88em; background: #e9ece7; padding: 0.05rem 0.3rem; border-radius: 3px; }
+.md pre { background: var(--color-ink); color: #e6edf4; padding: 0.75rem; border-radius: 4px; overflow-x: auto; }
 .md pre code { background: transparent; color: inherit; }
-.md a { color: #2563eb; text-decoration: underline; }
+.md a { color: var(--color-ink); text-decoration: underline; text-underline-offset: 2px; }
 .md strong { font-weight: 600; }
 
 .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-.scroll-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: var(--color-rule); border-radius: 8px; }
 
 @keyframes pulse-dot { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 .typing span { animation: pulse-dot 1.2s infinite; }

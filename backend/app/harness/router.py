@@ -350,10 +350,11 @@ async def run_router(rt: "Runtime", project_id: int, event_ids: list[int]) -> No
         rt.publish(project_id, "reply_start", {"reply_id": reply_id})
     rt.publish(project_id, "router", {"busy": True, "batch": len(events)})
     ctx = ToolContext(runtime=rt, project_id=project_id, actor="router")
+    llm, model_name = rt.llm_for(project_id, "router")
     try:
         result = await run_agent_loop(
-            rt.llm,
-            model=settings.router_model,
+            llm,
+            model=model_name,
             effort=settings.router_effort,
             system=router_system(),
             messages=[{"role": "user", "content": _snapshot(rt, project_id, events)}],

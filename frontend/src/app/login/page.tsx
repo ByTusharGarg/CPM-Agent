@@ -2,7 +2,6 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { HardHat } from "lucide-react";
 import { api, errMsg } from "@/lib/api";
 
 const DEMO = ["owner@demo.local", "pm@demo.local", "consultant@demo.local", "viewer@demo.local", "site@apexsteel.example"];
@@ -51,15 +50,10 @@ function LoginForm() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-5">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 text-white">
-            <HardHat size={20} />
-          </div>
-          <div>
-            <h1 className="font-semibold leading-tight">Site Manager</h1>
-            <p className="text-xs text-slate-500">Sign in with a one-time code</p>
-          </div>
+      <div className="w-full max-w-sm rounded-md border border-rule bg-panel p-6 shadow-sm">
+        <div className="-mx-6 -mt-6 mb-6 rounded-t-md bg-ink px-6 pb-5 pt-6">
+          <h1 className="font-display text-[30px] font-bold leading-none text-white">Site Manager</h1>
+          <p className="mt-1.5 text-[14px] text-white/70">Sign in with a one-time code sent to your email.</p>
         </div>
         {step === "email" ? (
           <form onSubmit={sendCode} className="space-y-3">
@@ -71,16 +65,16 @@ function LoginForm() {
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                className="mt-1 w-full rounded border border-rule px-3 py-2 text-sm outline-none focus:border-ink/50"
               />
             </label>
-            <button disabled={busy} className="w-full rounded-lg bg-slate-900 py-2 text-sm font-medium text-white disabled:opacity-40">
+            <button disabled={busy} className="w-full rounded bg-ink py-2 text-sm font-medium text-white disabled:opacity-40">
               Send code
             </button>
           </form>
         ) : (
           <form onSubmit={verify} className="space-y-3">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-graphite/80">
               Code sent to <b>{email}</b>
             </p>
             <input
@@ -89,24 +83,24 @@ function LoginForm() {
               maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-center font-mono text-lg tracking-[0.4em] outline-none focus:border-slate-400"
+              className="w-full rounded border border-rule px-3 py-2 text-center font-display text-lg tracking-[0.4em] outline-none focus:border-ink/50"
             />
-            <button disabled={busy || code.length < 6} className="w-full rounded-lg bg-slate-900 py-2 text-sm font-medium text-white disabled:opacity-40">
+            <button disabled={busy || code.length < 6} className="w-full rounded bg-ink py-2 text-sm font-medium text-white disabled:opacity-40">
               Sign in
             </button>
-            <button type="button" onClick={() => { setStep("email"); setCode(""); setHint(""); }} className="w-full text-xs text-slate-500 hover:text-slate-800">
+            <button type="button" onClick={() => { setStep("email"); setCode(""); setHint(""); }} className="w-full text-xs text-graphite/70 hover:text-ink">
               Use a different email
             </button>
           </form>
         )}
-        {hint && <p className="mt-3 text-xs text-slate-500">{hint}</p>}
-        {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+        {hint && <p className="mt-3 text-xs text-graphite/70">{hint}</p>}
+        {err && <p className="mt-3 text-sm text-brick">{err}</p>}
         {step === "email" && (
-          <div className="mt-5 border-t border-slate-100 pt-4">
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">Demo accounts</p>
+          <div className="mt-5 border-t border-rule pt-4">
+            <p className="mb-2 text-[13px] font-medium text-graphite/70">Demo accounts</p>
             <div className="flex flex-wrap gap-1.5">
               {DEMO.map((d) => (
-                <button key={d} onClick={() => sendCode(undefined, d)} className="rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50">
+                <button key={d} onClick={() => sendCode(undefined, d)} className="rounded-full border border-rule px-2.5 py-1 text-xs text-graphite/80 hover:bg-concrete">
                   {d}
                 </button>
               ))}

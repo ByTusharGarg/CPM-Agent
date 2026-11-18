@@ -284,6 +284,66 @@ export const api = {
     fd.append("file", file);
     return req<{ activities: number; links: number; milestones: number; baseline_finish: string | null }>(`/api/projects/${id}/schedule/import`, { method: "POST", body: fd });
   },
+  // documents, RFIs, submittals
+  documents: (id: number) => req<DocItem[]>(`/api/projects/${id}/documents`),
+  document: (docId: number) => req<DocItem & { versions: DocVersion[] }>(`/api/documents/${docId}`),
+  uploadDocument: (id: number, file: File, meta: Record<string, string> = {}) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    for (const [k, v] of Object.entries(meta)) if (v) fd.append(k, v);
+    return req<DocItem & { new_document: boolean; supersedes: string | null }>(`/api/projects/${id}/documents`, { method: "POST", body: fd });
+  },
+  patchDocument: (docId: number, body: Partial<Pick<DocItem, "number" | "title" | "discipline" | "doc_type" | "status">>) =>
+    req<DocItem>(`/api/documents/${docId}`, { method: "PATCH", body: JSON.stringify(body) }),
+  searchDocuments: (id: number, q: string) => req<SearchHit[]>(`/api/projects/${id}/documents/search?q=${encodeURIComponent(q)}`),
+  rfis: (id: number) => req<Rfi[]>(`/api/projects/${id}/rfis`),
+  raiseRfi: (id: number, body: { subject: string; question: string; due_date?: string; activity_id?: number | null }) =>
+    req<Rfi>(`/api/projects/${id}/rfis`, { method: "POST", body: JSON.stringify(body) }),
+  answerRfi: (rid: number, answer: string, close = false) =>
+    req<Rfi>(`/api/rfis/${rid}/answer`, { method: "POST", body: JSON.stringify({ answer, close }) }),
+  closeRfi: (rid: number) => req<Rfi>(`/api/rfis/${rid}/close`, { method: "POST" }),
+  submittals: (id: number) => req<SubmittalItem[]>(`/api/projects/${id}/submittals`),
+  submitSubmittal: (id: number, form: { title: string; spec_section: string; activity_id?: string; file?: File | null }) => {
+    const fd = new FormData();
+    fd.append("title", form.title);
+    fd.append("spec_section", form.spec_section);
+    if (form.activity_id) fd.append("activity_id", form.activity_id);
+    if (form.file) fd.append("file", form.file);
+    return req<SubmittalItem>(`/api/projects/${id}/submittals`, { method: "POST", body: fd });
+  },
+  reviewSubmittal: (sid: number, status: string, comments: string) =>
+    req<SubmittalItem>(`/api/submittals/${sid}/review`, { method: "POST", body: JSON.stringify({ status, comments }) }),
+  resubmitSubmittal: (sid: number, file: File, notes: string) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("notes", notes);
+    return req<SubmittalItem>(`/api/submittals/${sid}/resubmit`, { method: "POST", body: fd });
+  },
+  // money
+  commercial: (id: number) => req<Commercial>(`/api/projects/${id}/commercial`),
+  submitChangeOrder: (id: number, body: { title: string; description?: string; reason?: string; proposed_amount: number; time_impact_days?: number; contract_id?: number | null; source_ref?: string }) =>
+    req<ChangeOrderItem>(`/api/projects/${id}/change-orders`, { method: "POST", body: JSON.stringify(body) }),
+  decideChangeOrder: (coId: number, approve: boolean, amount: number | null, note = "") =>
+    req<ChangeOrderItem>(`/api/change-orders/${coId}/decide`, { method: "POST", body: JSON.stringify({ approve, amount, note }) }),
+  submitPayApp: (id: number, body: { contract_id: number; claims: { contract_line_id: number; claimed_pct: number }[]; notes?: string }) =>
+    req<PayAppItem>(`/api/projects/${id}/pay-apps`, { method: "POST", body: JSON.stringify(body) }),
+  certifyPayApp: (appId: number, line_pcts: Record<number, number>, note: string) =>
+    req<PayAppItem>(`/api/pay-apps/${appId}/certify`, { method: "POST", body: JSON.stringify({ line_pcts, note }) }),
+  rejectPayApp: (appId: number, note: string) =>
+    req<PayAppItem>(`/api/pay-apps/${appId}/reject`, { method: "POST", body: JSON.stringify({ note }) }),
+  // LLM models
+  models: () => req<ModelConfigItem[]>("/api/models"),
+  discoverModels: () =>
+    req<{ ollama: { reachable: boolean; url: string; models: { model: string; size_gb: number; family: string }[] };
+          anthropic: { key_present: boolean; models: { model: string; label: string }[] } }>("/api/models/discover"),
+  addModel: (body: { label: string; provider: string; model: string; is_default?: boolean }) =>
+    req<ModelConfigItem>("/api/models", { method: "POST", body: JSON.stringify(body) }),
+  patchModel: (mid: number, body: { label?: string; enabled?: boolean; is_default?: boolean }) =>
+    req<ModelConfigItem>(`/api/models/${mid}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteModel: (mid: number) => req(`/api/models/${mid}`, { method: "DELETE" }),
+  projectModel: (id: number) => req<ProjectModel>(`/api/projects/${id}/model`),
+  setProjectModel: (id: number, model_config_id: number | null) =>
+    req<ProjectModel>(`/api/projects/${id}/model`, { method: "PUT", body: JSON.stringify({ model_config_id }) }),
   // files
   upload: (id: number, file: File) => {
     const fd = new FormData();
@@ -354,4 +414,183 @@ export interface Schedule {
   activities: ScheduleActivity[];
   dependencies: { pred: number; succ: number; type: string; lag: number }[];
   baselines: { id: number; name: string; source: string; current: boolean; created_at: string }[];
+}
+
+export interface DocItem {
+  id: number;
+  ref: string;
+  number: string;
+  title: string;
+  discipline: string;
+  doc_type: string;
+  status: string;
+  classified: boolean;
+  revision: string | null;
+  version_id: number | null;
+  pages: number;
+  searchable: boolean;
+  activity_id: number | null;
+  updated_at: string;
+}
+
+export interface DocVersion {
+  id: number;
+  revision: string;
+  file_id: number;
+  source: string;
+  notes: string;
+  pages: number;
+  current: boolean;
+  created_at: string;
+}
+
+export interface SearchHit {
+  cite: string;
+  document: string;
+  number: string;
+  title: string;
+  revision: string;
+  current: boolean;
+  status: string;
+  page: number;
+  excerpt: string;
+}
+
+export interface Rfi {
+  id: number;
+  number: number;
+  subject: string;
+  question: string;
+  status: "open" | "answered" | "closed" | "void";
+  ball_in_court: string;
+  due_date: string;
+  overdue: boolean;
+  answer: string;
+  time_impact: boolean;
+  cost_impact: boolean;
+  activity_id: number | null;
+  raised_by: number | null;
+  created_at: string;
+}
+
+export interface SubmittalItem {
+  id: number;
+  number: number;
+  title: string;
+  spec_section: string;
+  contractor_id: number | null;
+  revision: number;
+  status: string;
+  due_date: string;
+  required_by: string | null;
+  overdue: boolean;
+  document_id: number | null;
+  activity_id: number | null;
+  reviewer_comments: string;
+}
+
+export function fileUrl(versionId: number): string {
+  return `${API}/api/document-versions/${versionId}/file`;
+}
+
+export interface ContractItem {
+  id: number;
+  number: string;
+  title: string;
+  contractor_id: number | null;
+  retention_pct: number;
+  value: number;
+  lines: { id: number; code: string; description: string; value: number; milestone_id: number | null; activity_id: number | null }[];
+}
+
+export interface ChangeOrderItem {
+  id: number;
+  number: number;
+  title: string;
+  description: string;
+  reason: string;
+  stage: "pco" | "submitted" | "approved" | "rejected" | "void";
+  contract_id: number | null;
+  proposed_amount: number;
+  approved_amount: number | null;
+  recommended_amount: number | null;
+  assessment: string;
+  time_impact_days: number;
+  source_ref: string;
+}
+
+export interface PayAppItem {
+  id: number;
+  number: number;
+  contract_id: number;
+  period_end: string;
+  status: "submitted" | "certified" | "rejected" | "paid";
+  gross_to_date: number;
+  certified_to_date: number | null;
+  retention: number;
+  previous_certified: number;
+  amount_due: number;
+  notes: string;
+  lines: { contract_line_id: number; claimed_pct: number; certified_pct: number | null }[];
+}
+
+export interface OverbillItem {
+  pay_app_id: number;
+  pay_app_number: number;
+  contract_id: number;
+  line_id: number;
+  description: string;
+  claimed_pct: number;
+  recorded_pct: number;
+  excess_value: number;
+  ref: string;
+}
+
+export interface CashflowPoint {
+  month: string;
+  planned_cum: number;
+  actual_cum: number | null;
+  forecast_cum: number;
+}
+
+export interface Commercial {
+  currency: string;
+  summary: null | {
+    budget?: number;
+    contracts_original?: number;
+    approved_changes?: number;
+    committed?: number;
+    pending_exposure?: number;
+    uncommitted?: number;
+    forecast_final?: number;
+    variance?: number;
+    certified_to_date?: number;
+    retention_held?: number;
+    cashflow?: CashflowPoint[];
+    contracts: { id: number; title: string; revised: number; earned: number; claimed_to_date: number; certified_to_date: number; overbilled: number; retention_held: number }[];
+    overbilling: OverbillItem[];
+  };
+  contracts: ContractItem[];
+  change_orders: ChangeOrderItem[];
+  pay_apps: PayAppItem[];
+}
+
+export interface ModelConfigItem {
+  id: number;
+  label: string;
+  provider: "ollama" | "anthropic" | "stub";
+  model: string;
+  enabled: boolean;
+  is_default: boolean;
+  available: boolean;
+  status: string;
+}
+
+export interface ProjectModel {
+  model_config_id: number | null;
+  provider: string;
+  model: string;
+  label: string;
+  available: boolean;
+  status: string;
 }

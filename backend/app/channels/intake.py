@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 HELP = (
     "Site Manager - how to use this chat:\n"
     "- Contractors: send your daily report as text (photos welcome; send photos first or with a caption).\n"
+    "- Need a design answer? Start with RFI: e.g. \"RFI: bracket spacing at grid C conflicts with beam\".\n"
     "- Owners: ask the project manager anything; reply with an option number or Approve/Reject to decide.\n"
     "- Several projects? Start with #<project number>, e.g. \"#2 slab cast today\".\n"
     "- Send HELP to see this again."
@@ -243,6 +244,28 @@ async def handle_inbound(rt: "Runtime", m: Inbound) -> str | None:
 
     # 5) route by role
     if role == "contractor":
+        rfi = re.match(r"^\s*rfi\s*[:\-]\s*", text, re.I)
+        if rfi:
+            from ..doc_services import create_rfi
+
+            body = text[rfi.end():].strip()
+            first, _, rest = body.partition("\n")
+            subject = (first[:120] or "RFI").strip()
+            try:
+                view = await create_rfi(rt, pid, subject=subject, question=body, user_id=user.id, by=f"contractor:{user.email}",
+                                        role="contractor", contractor_id=contractor_id, channel=m.channel)
+            except ServiceError as e:
+                _record(m, user.id, pid, f"error:{e.detail}")
+                return f"Couldn't raise the RFI: {e.detail}."
+            _record(m, user.id, pid, f"rfi:{view['id']}")
+            return f"📝 RFI #{view['number']} raised: {subject}. An answer is due by {view['due_date']}; you'll get it here."
+        doc_files = [(fid, data, mime, fname) for fid, (data, mime, fname) in zip(file_ids, m.files)
+                     if not mime.startswith(("image/", "audio/", "video/"))]
+        if doc_files:  # PDFs / office files from contractors go into the document register as well
+            from ..doc_services import upload_document
+
+            for _, data, mime, fname in doc_files:
+                await upload_document(rt, pid, data, fname, mime, user_id=user.id, by=f"contractor:{user.email}", source=m.channel)
         image_ids = [i for i in file_ids]
         if not text and not voice_note:
             # Photos without a caption wait for the report text.

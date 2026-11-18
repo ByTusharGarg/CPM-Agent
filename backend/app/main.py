@@ -64,7 +64,9 @@ log = logging.getLogger("cpm")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     migrate()
-    rt = Runtime(make_llm())
+    # Per-project model selection (Settings -> Models, chooser in the chat).
+    # CPM_STUB_LLM=1 forces the offline stub everywhere (tests, demos without any model).
+    rt = Runtime(make_llm() if settings.use_stub_llm else None)
     app.state.rt = rt
     await rt.resume()
     sched = start_scheduler(rt) if settings.enable_scheduler else None
@@ -83,6 +85,14 @@ app.add_middleware(
 from .channels.routes import router as channels_router  # noqa: E402
 
 app.include_router(channels_router)
+
+from .api_docs import router as docs_router  # noqa: E402
+
+app.include_router(docs_router)
+
+from .api_commercial import router as commercial_router  # noqa: E402
+
+app.include_router(commercial_router)
 
 
 @app.exception_handler(ServiceError)
@@ -756,3 +766,139 @@ async def import_schedule(pid: int, request: Request, file: UploadFile = File(..
     await rt.emit(pid, source="system", kind="schedule_imported",
                   payload={"file": file.filename, "by": acc.actor, **{k: v for k, v in result.items() if k != "warnings"}})
     return result
+
+
+# --------------------------------------------------------------------------- LLM models (settings + chat chooser)
+
+
+class ModelIn(BaseModel):
+    label: str = Field(min_length=2, max_length=80)
+    provider: str = Field(pattern="^(ollama|anthropic|stub)$")
+    model: str = Field(min_length=1, max_length=120)
+    is_default: bool = False
+
+
+class ModelPatch(BaseModel):
+    label: Optional[str] = None
+    enabled: Optional[bool] = None
+    is_default: Optional[bool] = None
+
+
+def _org_admin(user: User) -> None:
+    if not user.is_org_admin:
+        raise HTTPException(403, "only organization admins manage models")
+
+
+@app.get("/api/models")
+def list_models(user: User = Depends(current_user)) -> list[dict[str, Any]]:
+    from .harness.models_registry import config_view
+    from .models import ModelConfig
+
+    with session_scope() as s:
+        rows = s.exec(select(ModelConfig).where(ModelConfig.org_id == user.org_id).order_by(ModelConfig.id)).all()
+        return [config_view(c) for c in rows]
+
+
+@app.get("/api/models/discover")
+def discover_models(user: User = Depends(current_user)) -> dict[str, Any]:
+    from .harness.models_registry import CLAUDE_MODELS, availability, ollama_models
+
+    _org_admin(user)
+    installed = ollama_models(force=True)
+    has_key, _ = availability("anthropic", "")
+    return {
+        "ollama": {"reachable": installed is not None, "url": settings.ollama_url, "models": installed or []},
+        "anthropic": {"key_present": has_key, "models": [{"model": m, "label": label} for m, label in CLAUDE_MODELS]},
+    }
+
+
+@app.post("/api/models")
+def add_model(body: ModelIn, user: User = Depends(current_user)) -> dict[str, Any]:
+    from .harness.models_registry import config_view
+    from .models import ModelConfig
+
+    _org_admin(user)
+    with session_scope() as s:
+        if s.exec(select(ModelConfig).where(ModelConfig.org_id == user.org_id, ModelConfig.provider == body.provider,
+                                            ModelConfig.model == body.model)).first():
+            raise HTTPException(409, "that model is already configured")
+        if body.is_default:
+            for c in s.exec(select(ModelConfig).where(ModelConfig.org_id == user.org_id)).all():
+                c.is_default = False
+                s.add(c)
+        c = ModelConfig(org_id=user.org_id, **body.model_dump())
+        s.add(c)
+        s.flush()
+        return config_view(c)
+
+
+@app.patch("/api/models/{mid}")
+def patch_model(mid: int, body: ModelPatch, user: User = Depends(current_user)) -> dict[str, Any]:
+    from .harness.models_registry import config_view
+    from .models import ModelConfig
+
+    _org_admin(user)
+    with session_scope() as s:
+        c = s.get(ModelConfig, mid)
+        if c is None or c.org_id != user.org_id:
+            raise HTTPException(404)
+        if body.label is not None:
+            c.label = body.label
+        if body.enabled is not None:
+            c.enabled = body.enabled
+            if not body.enabled:
+                c.is_default = False
+        if body.is_default:
+            for other in s.exec(select(ModelConfig).where(ModelConfig.org_id == user.org_id)).all():
+                other.is_default = other.id == c.id
+                s.add(other)
+            c.enabled = True
+        s.add(c)
+        s.flush()
+        return config_view(c)
+
+
+@app.delete("/api/models/{mid}")
+def delete_model(mid: int, user: User = Depends(current_user)) -> dict[str, Any]:
+    from .models import ModelConfig
+
+    _org_admin(user)
+    with session_scope() as s:
+        c = s.get(ModelConfig, mid)
+        if c is None or c.org_id != user.org_id:
+            raise HTTPException(404)
+        for p in s.exec(select(Project).where(Project.model_config_id == mid)).all():
+            p.model_config_id = None
+            s.add(p)
+        s.delete(c)
+    return {"deleted": mid}
+
+
+@app.get("/api/projects/{pid}/model")
+def project_model(pid: int, acc: Access = Depends(require("project.view"))) -> dict[str, Any]:
+    from .harness.models_registry import availability, resolve
+
+    with session_scope() as s:
+        provider, model, label = resolve(s, pid)
+        chosen = s.get(Project, pid).model_config_id
+    ok, note = availability(provider, model)
+    return {"model_config_id": chosen, "provider": provider, "model": model, "label": label, "available": ok, "status": note}
+
+
+class ProjectModelIn(BaseModel):
+    model_config_id: Optional[int] = None  # None = use the organization default
+
+
+@app.put("/api/projects/{pid}/model")
+def set_project_model(pid: int, body: ProjectModelIn, acc: Access = Depends(require("chat.send"))) -> dict[str, Any]:
+    from .models import ModelConfig
+
+    with session_scope() as s:
+        p = s.get(Project, pid)
+        if body.model_config_id is not None:
+            c = s.get(ModelConfig, body.model_config_id)
+            if c is None or c.org_id != p.org_id or not c.enabled:
+                raise HTTPException(400, "choose an enabled model from Settings")
+        p.model_config_id = body.model_config_id
+        s.add(p)
+    return project_model(pid, acc)

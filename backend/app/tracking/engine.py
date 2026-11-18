@@ -72,14 +72,19 @@ class Health:
     milestones: list[MilestoneForecast]
     rule_hits: list[RuleHit]
     schedule: Any = None  # CpmSchedule when the project has an activity network
+    commercial: Any = None  # CommercialSummary when the project has contracts
 
     def to_dict(self) -> dict[str, Any]:
-        sched = self.schedule
-        self.schedule = None  # the full network is served by /schedule, not the health payload
+        sched, com = self.schedule, self.commercial
+        self.schedule = self.commercial = None  # served by /schedule and /commercial, not the health payload
         try:
             d = asdict(self)
         finally:
-            self.schedule = sched
+            self.schedule, self.commercial = sched, com
+        if com is not None:
+            d["commercial_summary"] = {k: getattr(com, k) for k in (
+                "committed", "pending_exposure", "forecast_final", "variance", "certified_to_date")}
+            d["commercial_summary"]["overbilling_items"] = len(com.overbilling)
         if sched is not None:
             d["schedule_summary"] = {
                 "activities": len(sched.activities),
@@ -327,6 +332,8 @@ def compute_health(
     dependencies: list[Any] | None = None,
     baseline: dict[int, Any] | None = None,
     activity_overrides: dict[int, dict[str, Any]] | None = None,
+    rfis: list[Any] | None = None,
+    submittals: list[Any] | None = None,
 ) -> Health:
     th = {**(project.thresholds or {})}
     bac = float(project.budget or 0) or sum(float(m.budget or 0) for m in milestones)
@@ -351,7 +358,8 @@ def compute_health(
     if activities:
         from .cpm import Calendar, run_cpm
 
-        cpm_acts, cpm_links = build_network(activities, dependencies or [], procurement, design, baseline or {}, as_of)
+        cpm_acts, cpm_links = build_network(activities, dependencies or [], procurement, design, baseline or {}, as_of,
+                                            submittals or [])
         act_ov = expand_overrides(activities, overrides or {}, activity_overrides or {})
         schedule = run_cpm(cpm_acts, cpm_links, Calendar.for_project(project), as_of, project.target_end_date, act_ov)
         forecasts = milestones_from_schedule(milestones, schedule, as_of)
@@ -365,6 +373,7 @@ def compute_health(
     hits = evaluate_rules(project, th, forecasts, procurement, design, updates, contractors, milestones, spi, cpi, cv_pct, slip, as_of)
     if schedule is not None:
         hits.extend(schedule_rules(schedule, th))
+    hits.extend(document_rules(rfis or [], submittals or [], schedule, as_of))
     status = "green"
     if any(h.severity == "critical" for h in hits):
         status = "red"
@@ -535,7 +544,7 @@ def evaluate_rules(
 # --------------------------------------------------------------------------- activity network (CPM)
 
 
-def build_network(activities, dependencies, procurement, design, baseline: dict[int, Any], as_of: date):
+def build_network(activities, dependencies, procurement, design, baseline: dict[int, Any], as_of: date, submittals=()):
     """Turn DB rows into CPM inputs. Material deliveries and design approvals become
     start-no-earlier-than constraints on the activity they are linked to (or, if only
     linked to a milestone, on the first activities of that milestone)."""
@@ -564,6 +573,10 @@ def build_network(activities, dependencies, procurement, design, baseline: dict[
     for d in design:
         if d.status not in DONE_DESIGN:
             attach(d, max(d.due_date, as_of + timedelta(days=7)), f"design:{d.id}")
+    for x in submittals:  # work that needs an approved submittal cannot start before approval
+        if x.activity_id in snet and x.status not in ("approved", "approved_as_noted", "rejected"):
+            ready = as_of + timedelta(days=10) if x.status == "revise_resubmit" else max(x.due_date, as_of + timedelta(days=1))
+            snet[x.activity_id].append((ready, f"submittal:{x.id}"))
 
     acts = []
     for a in sorted(activities, key=lambda x: (x.sort_order, x.id)):
@@ -656,4 +669,36 @@ def schedule_rules(schedule, th: dict[str, Any]) -> list[RuleHit]:
         hits.append(RuleHit("logic_loop", "logic_loop", "warning", f"Schedule logic loop between {len(schedule.cycles)} activities",
                             "Fix the dependencies; looping links are ignored in the forecast.",
                             [f"activity:{i}" for i in schedule.cycles[:10]]))
+    return hits
+
+
+def document_rules(rfis, submittals, schedule, as_of: date) -> list[RuleHit]:
+    hits: list[RuleHit] = []
+    acts = schedule.by_id() if schedule is not None else {}
+    for r in rfis:
+        if r.status != "open":
+            continue
+        a = acts.get(r.activity_id) if r.activity_id else None
+        if r.due_date < as_of:
+            over = (as_of - r.due_date).days
+            hits.append(RuleHit("rfi_overdue", f"rfi_overdue:{r.id}", "critical" if (r.time_impact and over > 7) else "warning",
+                                f"RFI #{r.number} '{r.subject}' unanswered {over} days past due",
+                                f"Ball in court: {r.ball_in_court}. Due {r.due_date}.",
+                                [f"rfi:{r.id}"] + ([f"activity:{r.activity_id}"] if r.activity_id else [])))
+        if a is not None and a.status != "done" and (a.critical or (a.early_start - as_of).days <= 14):
+            hits.append(RuleHit("rfi_blocks_work", f"rfi_blocks_work:{r.id}", "critical" if a.critical else "warning",
+                                f"Open RFI #{r.number} affects {'critical ' if a.critical else ''}activity '{a.name}'",
+                                f"Activity starts {a.early_start} (float {a.total_float}d) while RFI #{r.number} is still open.",
+                                [f"rfi:{r.id}", f"activity:{a.id}"]))
+    for x in submittals:
+        if x.status in ("submitted", "under_review") and x.due_date < as_of:
+            hits.append(RuleHit("submittal_overdue", f"submittal_overdue:{x.id}", "warning",
+                                f"Submittal #{x.number} '{x.title}' review {(as_of - x.due_date).days} days overdue",
+                                f"Status {x.status}, review was due {x.due_date}.", [f"submittal:{x.id}"]))
+        a = acts.get(x.activity_id) if x.activity_id else None
+        if a is not None and x.status not in ("approved", "approved_as_noted") and a.driver == f"submittal:{x.id}" and a.status != "done":
+            hits.append(RuleHit("submittal_drives_schedule", f"submittal_drives_schedule:{x.id}", "critical" if a.critical else "warning",
+                                f"Submittal #{x.number} approval is holding up '{a.name}'",
+                                f"'{a.name}' cannot start before approval (status {x.status}); float {a.total_float}d.",
+                                [f"submittal:{x.id}", f"activity:{a.id}"]))
     return hits

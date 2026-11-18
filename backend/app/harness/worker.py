@@ -156,10 +156,11 @@ async def run_worker(rt: "Runtime", work_item_id: int, event_ids: list[int] | No
         rt.publish(project_id, "activity", {"actor": f"{spec.title}", "work_item_id": work_item_id, "tool": name})
 
     base_turns, base_in, base_out = wi.turns_used, wi.input_tokens, wi.output_tokens
+    llm, model_name = rt.llm_for(project_id, "worker")
     try:
         result = await run_agent_loop(
-            rt.llm,
-            model=settings.worker_model,
+            llm,
+            model=model_name,
             effort=settings.worker_effort,
             system=WORKER_RULES + "\n\n" + spec.system,
             messages=transcript,

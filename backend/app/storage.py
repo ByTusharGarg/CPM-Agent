@@ -67,13 +67,20 @@ def backend() -> Backend:
     return _backend
 
 
-def save_file(data: bytes, filename: str, project_id: int | None, uploaded_by: int | None = None, content_type: str | None = None) -> StoredFile:
+def save_file(data: bytes, filename: str, project_id: int | None, uploaded_by: int | None = None,
+              content_type: str | None = None, session=None) -> StoredFile:
+    """Store bytes and record a StoredFile row - in the caller's session when given
+    (so it commits/rolls back with the caller's transaction and uses the same database)."""
     ctype = content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
     safe_name = "".join(c for c in Path(filename).name if c.isalnum() or c in "._-")[:120] or "file"
     key = f"p{project_id or 0}/{uuid.uuid4().hex}/{safe_name}"
     backend().put(key, data, ctype)
+    f = StoredFile(project_id=project_id, key=key, filename=safe_name, content_type=ctype, size=len(data), uploaded_by=uploaded_by)
+    if session is not None:
+        session.add(f)
+        session.flush()
+        return f
     with session_scope() as s:
-        f = StoredFile(project_id=project_id, key=key, filename=safe_name, content_type=ctype, size=len(data), uploaded_by=uploaded_by)
         s.add(f)
         s.flush()
         return f
