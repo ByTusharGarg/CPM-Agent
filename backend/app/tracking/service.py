@@ -8,7 +8,9 @@ from sqlmodel import Session, select
 
 from ..db import today
 from ..models import (
+    RFI,
     Activity,
+    Submittal,
     Baseline,
     BaselineActivity,
     Contractor,
@@ -42,6 +44,8 @@ def load_project_data(s: Session, project_id: int) -> dict[str, Any]:
         "activities": q(Activity),
         "dependencies": q(Dependency),
         "baseline": current_baseline(s, project_id),
+        "rfis": q(RFI),
+        "submittals": q(Submittal),
     }
 
 
@@ -71,4 +75,6 @@ def project_health(
         dependencies=d["dependencies"],
         baseline=d["baseline"],
         activity_overrides=activity_overrides,
+        rfis=d["rfis"],
+        submittals=d["submittals"],
     )

@@ -13,7 +13,7 @@ from datetime import date, timedelta
 
 from sqlmodel import SQLModel
 
-from .db import engine, session_scope, today
+from .db import engine, session_scope, today, utcnow
 from .models import (
     ChatMessage,
     Membership,
@@ -170,7 +170,86 @@ def seed(eng=None) -> list[int]:
             Membership(user_id=apex.id, project_id=p.id, role="contractor", contractor_id=steel.id),
             Membership(user_id=shree.id, project_id=q.id, role="contractor", contractor_id=gc.id),
         ])
+        s.flush()
+        _seed_documents(s, p, design1, steel, facade, apex, cons)
     return ids
+
+
+SPEC_0844 = """SECTION 08 44 13 - GLAZED ALUMINIUM CURTAIN WALLS (UNITISED)
+Riverside Commercial Complex - Issued for Construction
+
+1.4 PERFORMANCE REQUIREMENTS
+A. Thermal: centre-of-glass U-value not more than 1.6 W/m2K; system U-value not more than 2.2 W/m2K.
+B. Solar: solar heat gain coefficient (SHGC) not more than 0.25; visible light transmission at least 0.40.
+C. Structural: design wind pressure 2.1 kPa; deflection of framing members limited to span/175 or 19 mm.
+D. Water penetration: no uncontrolled water at 600 Pa test pressure.
+
+1.6 SUBMITTALS
+A. Shop drawings showing unit layout, bracket and anchor details, stack joints and movement capacity.
+B. Structural calculations sealed by a chartered engineer.
+C. Samples: 300 x 300 mm glass and frame finish samples.
+D. Performance test report for a mock-up tested to clause 1.4.
+
+2.3 ANCHORS AND BRACKETS
+A. Cast-in channels in slab edges at maximum 1200 mm centres; embedment depth not less than 150 mm.
+B. Brackets: hot-dip galvanised steel, three-way adjustable (+/- 25 mm).
+C. Where slab edges are steel beams, weld-on embed plates 200 x 150 x 12 mm to be provided by the steel contractor.
+
+3.2 INSTALLATION
+A. Install units only after slab edge survey; tolerance +/- 10 mm.
+"""
+
+STRUCT_NOTES = """S-001 STRUCTURAL GENERAL NOTES - Revision C - For Construction
+1. Structural steel to IS 2062 grade E350. Bolts property class 8.8, pre-tensioned at moment connections.
+2. Composite metal deck 1.0 mm, concrete grade M30 with 75 mm topping.
+3. Facade embed plates on perimeter beams per architectural facade drawings; coordinate before fabrication.
+4. Fire protection: 2 hour rating to columns, 1.5 hour to beams (intumescent coating).
+"""
+
+FACADE_DWG = """F-201 UNITISED FACADE - TYPICAL BRACKET AND STACK JOINT DETAILS - Revision R1
+Bracket spacing 1200 mm maximum along slab edge. Cast-in channel embedment 150 mm.
+At steel perimeter beams (levels 1-8) use weld-on embed plate 200 x 150 x 12 mm at each bracket.
+Stack joint movement capacity +/- 20 mm vertical. Unit width 1500 mm typical.
+"""
+
+
+def _seed_documents(s, p, design1, steel_contractor, facade_contractor, apex_user, consultant):
+    """Documents, an open (overdue) RFI, an answered RFI and a submittal under review."""
+    from sqlmodel import select as _select
+
+    from .docs import register_document
+    from .models import RFI, Activity, Submittal
+
+    acts = {a.code: a for a in s.exec(_select(Activity).where(Activity.project_id == p.id)).all()}
+    facade_dwg = design1[0]
+    spec = register_document(s, p.id, SPEC_0844.encode(), "S-0844 curtain wall specification.txt", "text/plain",
+                             number="SPEC-084413", title="Spec 08 44 13 Glazed aluminium curtain walls", revision="R0",
+                             discipline="facade", doc_type="specification")
+    spec.document.status, spec.document.classified = "for_construction", True
+    notes = register_document(s, p.id, STRUCT_NOTES.encode(), "S-001 structural general notes RevC.txt", "text/plain",
+                              title="Structural general notes", discipline="structure", doc_type="drawing")
+    notes.document.status, notes.document.classified = "for_construction", True
+    dwg = register_document(s, p.id, FACADE_DWG.encode(), "F-201_R1 facade bracket details.txt", "text/plain",
+                            title="Unitised facade - bracket and stack joint details", discipline="facade", doc_type="drawing")
+    dwg.document.design_id, dwg.document.activity_id, dwg.document.classified = facade_dwg.id, acts["A12"].id, True
+    for r in (spec, notes, dwg):
+        s.add(r.document)
+
+    s.add(RFI(project_id=p.id, number=1, subject="Facade embed plates on L3-L4 perimeter beams",
+              question="F-201 R1 shows weld-on embed plates at each facade bracket on steel perimeter beams. "
+                       "Batch 2 beams for L3-L4 are being fabricated now. Confirm plate size and spacing so the fabricator "
+                       "can weld them in the shop instead of on site?",
+              raised_by=apex_user.id, contractor_id=steel_contractor.id, ball_in_court="consultant",
+              due_date=d(-3), time_impact=True, activity_id=acts["A6"].id, document_ids=[dwg.document.id],
+              created_at=utcnow() - timedelta(days=10)))
+    s.add(RFI(project_id=p.id, number=2, subject="Deck topping thickness at L2 corridor",
+              question="Is the 75 mm topping maintained over the services trench at grid D/L2?",
+              raised_by=apex_user.id, contractor_id=steel_contractor.id, due_date=d(-20), status="answered",
+              answer="Yes - 75 mm minimum; add T10 @ 200 top mesh over the trench (see S-001 note 2).",
+              answered_by=consultant.id, answered_at=utcnow() - timedelta(days=21), activity_id=acts["A7"].id))
+    s.add(Submittal(project_id=p.id, number=1, title="Unitised panel system - glass and frame", spec_section="08 44 13",
+                    contractor_id=facade_contractor.id, status="under_review", due_date=d(2),
+                    required_by=acts["A13"].planned_start, activity_id=acts["A13"].id))
 
 
 def _seed_network(s, p, ms, proc, design, steel_contractor):

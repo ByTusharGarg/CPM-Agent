@@ -32,6 +32,24 @@ log = logging.getLogger(__name__)
 # no worker is subscribed to start a worker directly. The Router hears the
 # worker's result, never the raw (untrusted) contractor text.
 FAST_PATH_DISPATCH: dict[str, tuple[str, str, str]] = {
+    "document_uploaded": (
+        "document_controller",
+        "Register {number} {title} ({revision})",
+        "A document or new revision was uploaded (see <source_events>). Read its title block, classify it and link it "
+        "to what it serves. If it supersedes a revision, check open RFIs and submittals that may use the old one.",
+    ),
+    "rfi_raised": (
+        "design",
+        "RFI #{number}: {subject}",
+        "A new RFI was raised (see <source_events>). Find the affected activity and impact (set_rfi_impact), "
+        "search the documents for relevant clauses, and report a suggested answer with citations.",
+    ),
+    "submittal_submitted": (
+        "design",
+        "Pre-check submittal #{number}: {title}",
+        "A submittal was submitted for review (see <source_events>). Check it against the specification "
+        "(search_documents) and report compliance points, gaps and the date the linked work needs approval.",
+    ),
     "daily_update": (
         "site_updates",
         "Daily report: {contractor}",

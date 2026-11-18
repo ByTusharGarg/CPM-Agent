@@ -13,7 +13,10 @@ from typing import Any
 from sqlmodel import Session, SQLModel, col, select
 
 from ..models import (
+    RFI,
     Activity,
+    Document,
+    Submittal,
     ActionLog,
     Dependency,
     Alert,
@@ -38,6 +41,9 @@ KINDS: dict[str, type[SQLModel]] = {
     "milestone": Milestone,
     "procurement": ProcurementItem,
     "activity": Activity,
+    "document": Document,
+    "rfi": RFI,
+    "submittal": Submittal,
     "design": DesignDeliverable,
     "contractor": Contractor,
     "update": DailyUpdate,
@@ -100,7 +106,22 @@ def _related(s: Session, kind: str, row: Any) -> list[str]:
     def refs(model, *conds, k: str):
         return [f"{k}:{r.id}" for r in s.exec(select(model).where(*conds)).all()]
 
-    if kind == "activity":
+    if kind == "document":
+        from ..models import DocumentVersion
+
+        rel += [f"version:{v.revision}" for v in s.exec(select(DocumentVersion).where(DocumentVersion.document_id == row.id)).all()]
+        for ref in (f"design:{row.design_id}" if row.design_id else "", f"activity:{row.activity_id}" if row.activity_id else "",
+                    f"milestone:{row.milestone_id}" if row.milestone_id else ""):
+            rel.append(ref)
+        rel += refs(Submittal, Submittal.document_id == row.id, k="submittal")
+    elif kind == "rfi":
+        rel += [f"document:{d}" for d in (row.document_ids or [])]
+        rel.append(f"activity:{row.activity_id}" if row.activity_id else "")
+        rel.append(f"contractor:{row.contractor_id}" if row.contractor_id else "")
+    elif kind == "submittal":
+        rel += [f"document:{row.document_id}" if row.document_id else "", f"activity:{row.activity_id}" if row.activity_id else "",
+                f"contractor:{row.contractor_id}" if row.contractor_id else ""]
+    elif kind == "activity":
         rel.append(f"milestone:{row.milestone_id}" if row.milestone_id else "")
         rel += [f"activity:{d.predecessor_id} ({d.type}{d.lag_days:+d}) -> this" for d in
                 s.exec(select(Dependency).where(Dependency.successor_id == row.id)).all()]
@@ -108,6 +129,8 @@ def _related(s: Session, kind: str, row: Any) -> list[str]:
                 s.exec(select(Dependency).where(Dependency.predecessor_id == row.id)).all()]
         rel += refs(ProcurementItem, ProcurementItem.activity_id == row.id, k="procurement")
         rel += refs(DesignDeliverable, DesignDeliverable.activity_id == row.id, k="design")
+        rel += refs(RFI, RFI.activity_id == row.id, k="rfi")
+        rel += refs(Submittal, Submittal.activity_id == row.id, k="submittal")
     elif kind == "milestone":
         rel += refs(Activity, Activity.milestone_id == row.id, k="activity")
         rel += [f"milestone:{d}" for d in (row.depends_on or [])]
@@ -182,6 +205,9 @@ def _brief(kind: str, r: Any) -> dict[str, Any]:
     keep = {
         "milestone": ["name", "planned_start", "planned_end", "percent_complete", "is_critical", "contractor_id"],
         "activity": ["name", "milestone_id", "duration_days", "planned_start", "planned_finish", "percent_complete"],
+        "document": ["number", "title", "discipline", "doc_type", "status", "activity_id"],
+        "rfi": ["number", "subject", "status", "due_date", "ball_in_court", "time_impact", "activity_id"],
+        "submittal": ["number", "title", "status", "revision", "due_date", "required_by", "activity_id", "contractor_id"],
         "procurement": ["item", "vendor", "status", "required_on_site", "expected_delivery", "lead_time_days", "milestone_id"],
         "design": ["title", "discipline", "status", "due_date", "milestone_id"],
         "contractor": ["name", "trade", "allowlisted"],

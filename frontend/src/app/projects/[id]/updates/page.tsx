@@ -101,6 +101,9 @@ export default function DailyReportPage() {
         </button>
       </div>
       <h1 className="mt-4 text-xl font-semibold">Daily site report</h1>
+      <Link href={`/projects/${pid}/documents?tab=rfis`} className="mt-1 inline-block text-sm text-slate-600 underline">
+        Drawings, RFIs & submittals
+      </Link>
       <p className="text-sm text-slate-500">
         {isContractor ? `Reporting for ${contractors[0]?.name ?? "your company"}` : "Submit a report on a contractor's behalf"}
       </p>

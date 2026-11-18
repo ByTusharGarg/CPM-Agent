@@ -84,6 +84,10 @@ from .channels.routes import router as channels_router  # noqa: E402
 
 app.include_router(channels_router)
 
+from .api_docs import router as docs_router  # noqa: E402
+
+app.include_router(docs_router)
+
 
 @app.exception_handler(ServiceError)
 async def _service_error(request: Request, exc: ServiceError):

@@ -236,6 +236,89 @@ class BaselineActivity(SQLModel, table=True):
     duration_days: int = 0
 
 
+class Document(SQLModel, table=True):
+    """A controlled document (drawing, specification, report...) with revisions."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    number: str = Field(default="", index=True)  # e.g. "A-101", "S-2001"; unique per project when set
+    title: str
+    discipline: str = ""  # architecture | structure | mep | facade | civil | general ...
+    doc_type: str = "drawing"  # drawing | specification | report | contract | correspondence | submittal | other
+    status: str = "for_review"  # draft | for_review | approved | for_construction | superseded | rejected
+    current_version_id: Optional[int] = None
+    design_id: Optional[int] = Field(default=None, foreign_key="designdeliverable.id")
+    milestone_id: Optional[int] = Field(default=None, foreign_key="milestone.id")
+    activity_id: Optional[int] = Field(default=None, foreign_key="activity.id")
+    classified: bool = False  # set once the Document Controller has reviewed the metadata
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class DocumentVersion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    document_id: int = Field(foreign_key="document.id", index=True)
+    revision: str = "R0"
+    file_id: int = Field(foreign_key="storedfile.id")
+    uploaded_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    source: str = "upload"  # upload | email | whatsapp | submittal
+    notes: str = ""
+    pages: int = 0
+    text_chars: int = 0  # 0 = no extractable text (scan/image)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class DocChunk(SQLModel, table=True):
+    """Searchable text of one page-sized piece of a document version."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    version_id: int = Field(foreign_key="documentversion.id", index=True)
+    page: int = 1
+    seq: int = 0
+    text: str
+
+
+class RFI(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    number: int = 0  # sequential per project
+    subject: str
+    question: str
+    raised_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    contractor_id: Optional[int] = Field(default=None, foreign_key="contractor.id")
+    ball_in_court: str = "consultant"  # role or "user:<id>" expected to act next
+    due_date: date
+    status: str = "open"  # open | answered | closed | void
+    answer: str = ""
+    answered_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    answered_at: Optional[datetime] = None
+    cost_impact: bool = False
+    time_impact: bool = False
+    activity_id: Optional[int] = Field(default=None, foreign_key="activity.id")
+    document_ids: list = _json(list)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Submittal(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    number: int = 0
+    title: str
+    spec_section: str = ""
+    contractor_id: Optional[int] = Field(default=None, foreign_key="contractor.id")
+    revision: int = 0
+    status: str = "submitted"  # submitted | under_review | approved | approved_as_noted | revise_resubmit | rejected
+    due_date: date  # review due
+    required_by: Optional[date] = None  # when the linked work needs it approved
+    document_id: Optional[int] = Field(default=None, foreign_key="document.id")
+    activity_id: Optional[int] = Field(default=None, foreign_key="activity.id")
+    reviewer_comments: str = ""
+    decided_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    decided_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class DesignDeliverable(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="project.id", index=True)

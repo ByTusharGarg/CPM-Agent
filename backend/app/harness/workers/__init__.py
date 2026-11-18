@@ -17,9 +17,9 @@ class WorkerSpec:
 
 
 def registry() -> dict[str, WorkerSpec]:
-    from . import cost, design, planner, procurement, reporter, site_updates
+    from . import cost, design, document_controller, planner, procurement, reporter, site_updates
 
-    specs = [design.SPEC, procurement.SPEC, site_updates.SPEC, cost.SPEC, planner.SPEC, reporter.SPEC]
+    specs = [design.SPEC, procurement.SPEC, site_updates.SPEC, cost.SPEC, planner.SPEC, reporter.SPEC, document_controller.SPEC]
     return {s.name: s for s in specs}
 
 

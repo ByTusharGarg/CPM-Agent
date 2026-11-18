@@ -69,6 +69,12 @@ export function ChatPane({ state }: { state: ProjectState }) {
         >
           Schedule
         </Link>
+        <Link
+          href={`/projects/${project?.id}/documents`}
+          className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50 sm:block"
+        >
+          Documents
+        </Link>
         {state.can("update.submit") && (
         <Link
           href={`/projects/${project?.id}/updates`}

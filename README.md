@@ -97,6 +97,25 @@ A project can be tracked by milestones only, or by an **activity network**: acti
   - Site Updates records progress on activities.
   - `schedule.rebaseline` (the current forecast becomes the new baseline) always needs the owner's approval.
 
+### Documents, RFIs and submittals (phase 10)
+**Documents** opens a lean document register (common data environment):
+- **Upload:** name files like `A-101_R2 ground floor.pdf` and the number and revision are detected. A new revision supersedes the previous one.
+- **Search:** PDF and text files are indexed for full-text search (BM25). Results cite `document:<id>#p<page>` and exclude superseded revisions unless asked.
+- **Document Controller agent:** checks each upload's title block and links it to the design deliverable or activity it serves. It also flags open RFIs and submittals that may still use an old revision.
+- **Issuing:** issuing a document *for construction* is done by a reviewer, or by an agent only with approval. Issuing marks its design deliverable approved.
+
+**RFIs:**
+- Contractors, consultants and the owner's side can raise RFIs in the app, or contractors send `RFI: …` on WhatsApp.
+- The Design coordinator agent assesses schedule and cost impact, links the affected activity, and suggests an answer with citations. It does not answer; consultants do.
+- Answers go back to the person who raised it on WhatsApp or email.
+- Engine rules flag overdue RFIs and open RFIs that block near-term or critical work.
+
+**Submittals:**
+- Statuses: submitted, under review, approved, approved as noted, revise & resubmit, rejected. Each resubmission adds a revision to the submittal's document.
+- An unapproved submittal linked to an activity becomes a **CPM start constraint**, so a slow review shows up in the forecast and raises `submittal_drives_schedule`.
+- Contractors are told the decision on their phone.
+- Contractors only see issued documents, their own uploads, and their own RFIs and submittals.
+
 ### WhatsApp and email (phase 8)
 People use the project from their phone. Each person is identified by the WhatsApp number or email on their profile (**Settings**), and their role decides what a message means:
 

@@ -46,6 +46,9 @@ DEFAULT_POLICIES: dict[str, str] = {
     "contractor.instruct": "observe",
     "schedule.change": "approval",
     "schedule.rebaseline": "approval",
+    "document.update": "auto",
+    "document.issue": "approval",
+    "rfi.update": "auto",
     "budget.change": "approval",
 }
 LOCKED_APPROVAL = {"schedule.change", "schedule.rebaseline", "budget.change"}
@@ -331,6 +334,69 @@ def _rebaseline(s: Session, pid: int, p: dict[str, Any]) -> str:
         proj.target_end_date = h.schedule.project_finish
         s.add(proj)
     return f"New baseline '{nb.name}' with {len(h.schedule.activities)} activities (finish {h.schedule.project_finish})"
+
+
+@action("document.update", "Update document metadata and links (not its approval status)",
+        lambda p: f"Classify document:{p['document_id']}" + (f" as {p['number']}" if p.get("number") else ""))
+def _document_update(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..models import Activity, Document
+
+    d = _get(s, Document, p["document_id"], pid)
+    if p.get("number"):
+        clash = s.exec(select(Document).where(Document.project_id == pid, Document.number == p["number"].upper(), Document.id != d.id)).first()
+        if clash:
+            raise ValueError(f"number {p['number']} already used by document:{clash.id} - upload this file as a new revision of it instead")
+        d.number = p["number"].upper()
+    for k in ("title", "discipline", "doc_type"):
+        if p.get(k):
+            setattr(d, k, p[k])
+    if p.get("design_id"):
+        _get(s, DesignDeliverable, p["design_id"], pid)
+        d.design_id = p["design_id"]
+    if p.get("milestone_id"):
+        _get(s, Milestone, p["milestone_id"], pid)
+        d.milestone_id = p["milestone_id"]
+    if p.get("activity_id"):
+        _get(s, Activity, p["activity_id"], pid)
+        d.activity_id = p["activity_id"]
+    d.classified = True
+    s.add(d)
+    return f"document:{d.id} {d.number or ''} '{d.title}' classified"
+
+
+@action("document.issue", "Issue a document as approved / for construction (approval required)",
+        lambda p: f"Issue document:{p['document_id']} as {p['status'].replace('_', ' ')}")
+def _document_issue(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..models import Document
+
+    d = _get(s, Document, p["document_id"], pid)
+    if p["status"] not in ("approved", "for_construction"):
+        raise ValueError("status must be approved or for_construction")
+    d.status = p["status"]
+    s.add(d)
+    if d.design_id and p["status"] in ("approved", "for_construction"):
+        dd = s.get(DesignDeliverable, d.design_id)
+        dd.status = "approved"
+        s.add(dd)
+    return f"document:{d.id} is now {d.status}"
+
+
+@action("rfi.update", "Record an RFI's schedule/cost impact and linked activity",
+        lambda p: f"Update rfi:{p['rfi_id']} impact")
+def _rfi_update(s: Session, pid: int, p: dict[str, Any]) -> str:
+    from ..models import RFI, Activity
+
+    r = _get(s, RFI, p["rfi_id"], pid)
+    for k in ("time_impact", "cost_impact"):
+        if k in p:
+            setattr(r, k, bool(p[k]))
+    if p.get("activity_id"):
+        _get(s, Activity, p["activity_id"], pid)
+        r.activity_id = p["activity_id"]
+    if p.get("ball_in_court"):
+        r.ball_in_court = p["ball_in_court"]
+    s.add(r)
+    return f"RFI #{r.number}: time_impact={r.time_impact} cost_impact={r.cost_impact} activity={r.activity_id}"
 
 
 @action("design.update", "Update a design deliverable's status/due date",
